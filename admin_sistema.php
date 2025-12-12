@@ -5,12 +5,7 @@
 require 'db.php';
 session_start();
 
-// VERIFICACIÓN DE SEGURIDAD (Solo Admin)
-$roles_usuario = $_SESSION['user_roles'] ?? [];
-if (!in_array('Administrador', $roles_usuario)) {
-    header("Location: dashboard.php");
-    exit;
-}
+if (!tienePermiso('configurar_sistema')) { header("Location: dashboard.php"); exit; }
 
 $mensaje = "";
 

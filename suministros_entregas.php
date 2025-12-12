@@ -5,59 +5,65 @@ include 'includes/header.php';
 include 'includes/sidebar.php';
 include 'includes/navbar.php';
 
-$roles = $_SESSION['user_roles'] ?? [];
-$puede_entregar = in_array('Administrador', $roles) || in_array('Encargado Depósito Suministros', $roles) || in_array('Auxiliar', $roles);
+if (!tienePermiso('ver_entregas_suministros') && !tienePermiso('realizar_entrega_suministros')) {
+    echo "<div class='alert alert-danger m-4'>⛔ Acceso Denegado</div>"; include 'includes/footer.php'; exit;
+}
+
+$puede_entregar = tienePermiso('realizar_entrega_suministros');
+$busqueda = $_GET['q'] ?? '';
 
 $sql = "SELECT e.*, u.nombre_completo as responsable 
         FROM entregas e 
         JOIN usuarios u ON e.id_usuario_responsable = u.id 
-        WHERE e.tipo_origen = 'suministros' 
-        ORDER BY e.fecha_entrega DESC";
-$entregas = $pdo->query($sql)->fetchAll();
+        WHERE e.tipo_origen = 'suministros'";
+
+$params = [];
+if (!empty($busqueda)) {
+    $sql .= " AND (e.id LIKE :q OR e.solicitante_nombre LIKE :q OR e.solicitante_area LIKE :q)";
+    $params[':q'] = "%$busqueda%";
+}
+$sql .= " ORDER BY e.fecha_entrega DESC";
+
+$stmt = $pdo->prepare($sql);
+$stmt->execute($params);
+$entregas = $stmt->fetchAll();
 ?>
 
 <div class="container-fluid px-4">
-    <h1 class="mt-4">Entregas de Suministros</h1>
+    <h1 class="mt-4">Entregas Suministros</h1>
 
-    <?php if (isset($_GET['msg']) && $_GET['msg'] == 'exito' && isset($_GET['new_id'])): ?>
-    <div class="alert alert-success alert-dismissible fade show shadow mb-4" role="alert">
-        <h4 class="alert-heading"><i class="fas fa-check-circle"></i> ¡Entrega Exitosa!</h4>
-        <p>La entrega se registró correctamente en el sistema y se descontó el stock.</p>
-        <hr>
-        <div class="d-flex justify-content-between align-items-center">
-            <span>Puedes descargar el comprobante firmado aquí:</span>
-            <a href="generar_pdf_entrega_suministros.php?id=<?php echo $_GET['new_id']; ?>" target="_blank" class="btn btn-dark fw-bold">
-                <i class="fas fa-file-pdf me-2"></i> DESCARGAR COMPROBANTE PDF
-            </a>
+    <div class="card mb-4 bg-light border-0">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-8">
+                    <form method="GET" class="input-group">
+                        <input type="text" name="q" class="form-control" placeholder="Buscar por ID, Solicitante o Área..." value="<?php echo htmlspecialchars($busqueda); ?>">
+                        <button class="btn btn-secondary" type="submit"><i class="fas fa-search"></i></button>
+                    </form>
+                </div>
+                <div class="col-md-4 text-end">
+                    <?php if ($puede_entregar): ?>
+                        <a href="suministros_entrega_nueva.php" class="btn btn-success"><i class="fas fa-plus"></i> Nueva Entrega</a>
+                    <?php endif; ?>
+                </div>
+            </div>
         </div>
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
-    <?php endif; ?>
 
     <div class="card mb-4">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <div><i class="fas fa-dolly me-1"></i> Historial de Salidas</div>
-            <?php if ($puede_entregar): ?>
-                <a href="suministros_entrega_nueva.php" class="btn btn-success btn-sm"><i class="fas fa-plus"></i> Nueva Entrega / Retiro</a>
-            <?php endif; ?>
-        </div>
-        <div class="card-body">
+        <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-bordered table-hover">
-                    <thead class="table-light">
-                        <tr><th>ID</th><th>Fecha</th><th>Solicitante</th><th>Área</th><th>Entregado Por</th><th>Acciones</th></tr>
-                    </thead>
+                <table class="table table-bordered table-hover align-middle">
+                    <thead class="table-light"><tr><th>ID</th><th>Fecha</th><th>Solicitante</th><th>Área</th><th>Entregado Por</th><th></th></tr></thead>
                     <tbody>
                         <?php foreach ($entregas as $ent): ?>
                         <tr>
-                            <td><?php echo $ent['id']; ?></td>
+                            <td>#<?php echo $ent['id']; ?></td>
                             <td><?php echo date('d/m/Y H:i', strtotime($ent['fecha_entrega'])); ?></td>
-                            <td class="fw-bold"><?php echo htmlspecialchars($ent['solicitante_nombre']); ?></td>
-                            <td><span class="badge bg-secondary"><?php echo htmlspecialchars($ent['solicitante_area']); ?></span></td>
+                            <td><?php echo htmlspecialchars($ent['solicitante_nombre']); ?></td>
+                            <td><?php echo htmlspecialchars($ent['solicitante_area']); ?></td>
                             <td><?php echo htmlspecialchars($ent['responsable']); ?></td>
-                            <td class="text-center">
-                                <a href="generar_pdf_entrega_suministros.php?id=<?php echo $ent['id']; ?>" target="_blank" class="btn btn-sm btn-danger" title="PDF"><i class="fas fa-file-pdf"></i> PDF</a>
-                            </td>
+                            <td class="text-center"><a href="generar_pdf_entrega_suministros.php?id=<?php echo $ent['id']; ?>" target="_blank" class="btn btn-sm btn-danger"><i class="fas fa-file-pdf"></i></a></td>
                         </tr>
                         <?php endforeach; ?>
                     </tbody>

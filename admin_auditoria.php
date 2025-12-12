@@ -5,11 +5,7 @@
 require 'db.php';
 session_start();
 
-// VERIFICACIÓN DE SEGURIDAD (Solo Admin)
-$roles_usuario = $_SESSION['user_roles'] ?? [];
-if (!in_array('Administrador', $roles_usuario)) {
-    die("<h1>⛔ Acceso Restringido</h1><p>Solo el Administrador puede ver la auditoría.</p>");
-}
+if (!tienePermiso('ver_auditoria')) { die("<h1>⛔ Acceso Restringido</h1>"); }
 
 include 'includes/header.php';
 include 'includes/sidebar.php';

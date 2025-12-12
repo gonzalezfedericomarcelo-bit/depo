@@ -3,12 +3,7 @@
 require 'db.php';
 session_start();
 
-// Seguridad: Solo Admin
-if (!in_array('Administrador', $_SESSION['user_roles'] ?? [])) {
-    header("Location: dashboard.php");
-    exit;
-}
-
+if (!tienePermiso('gestionar_roles')) { header("Location: dashboard.php"); exit; }
 $mensaje = "";
 
 // 1. GUARDAR / EDITAR / ELIMINAR ROL

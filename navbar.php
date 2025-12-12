@@ -31,8 +31,8 @@
                     <ul class="dropdown-menu dropdown-menu-end border-0 shadow">
                         <li><h6 class="dropdown-header text-uppercase small text-muted">Cuenta</h6></li>
                         <li><a class="dropdown-item py-2" href="perfil.php"><i class="fas fa-signature me-2 text-primary"></i> Mi Perfil</a></li>
-                        <?php if (in_array('Administrador', $roles_global)): ?>
-                        <li><a class="dropdown-item py-2" href="admin_sistema.php"><i class="fas fa-cogs me-2 text-secondary"></i> Configuración</a></li>
+                        <?php if (tienePermiso('ver_menu_configuracion')): ?>
+                            <li><a class="dropdown-item py-2" href="admin_sistema.php"><i class="fas fa-cogs me-2 text-secondary"></i> Configuración</a></li>
                         <?php endif; ?>
                         <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item py-2 text-danger fw-bold" href="logout.php"><i class="fas fa-sign-out-alt me-2"></i> Cerrar Sesión</a></li>

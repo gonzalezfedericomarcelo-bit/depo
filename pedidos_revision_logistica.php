@@ -1,6 +1,6 @@
 <?php
 // Archivo: pedidos_revision_logistica.php
-// Propósito: Logística revisa pedidos internos de suministros
+// Propósito: Logística aprueba y pasa el flujo al Depósito (Paso 1 -> Paso 2)
 require 'db.php';
 session_start();
 
@@ -23,18 +23,42 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 ->execute([':cant' => $cant_aprob, ':id' => $id_item]);
         }
 
-        // 2. Actualizar Cabecera (Estado: aprobado_logistica)
-        $sql = "UPDATE pedidos_servicio SET estado = 'aprobado_logistica', fecha_aprobacion_logistica = NOW(), id_logistica_aprobador = :log, observaciones_logistica = :obs WHERE id = :id";
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute([':log' => $_SESSION['user_id'], ':obs' => $obs, ':id' => $id_pedido]);
+        // 2. BUSCAR SIGUIENTE PASO EN EL FLUJO (Dinámico)
+        // Buscamos el paso 'pendiente_deposito' para 'movimiento_suministros'
+        $stmtFlujo = $pdo->prepare("SELECT * FROM config_flujos WHERE nombre_proceso = 'movimiento_suministros' AND nombre_estado = 'pendiente_deposito' LIMIT 1");
+        $stmtFlujo->execute();
+        $siguientePaso = $stmtFlujo->fetch();
 
-        // 3. Notificar al Depósito de Suministros
-        $stmtRol = $pdo->query("SELECT id FROM roles WHERE nombre = 'Encargado Depósito Suministros' LIMIT 1");
-        $rolDepo = $stmtRol->fetchColumn();
-        if ($rolDepo) {
-            $pdo->prepare("INSERT INTO notificaciones (id_rol_destino, mensaje, url_destino) VALUES (?, ?, ?)")
-                ->execute([$rolDepo, "Pedido suministros aprobado (ID #$id_pedido). Listo para despachar.", "pedidos_despacho_suministros.php?id=" . $id_pedido]);
+        if (!$siguientePaso) {
+            throw new Exception("Error de configuración: No se encuentra el paso 'pendiente_deposito' en la tabla config_flujos.");
         }
+
+        // 3. Actualizar Cabecera (Avanzamos el paso_actual_id y cambiamos el estado)
+        $sql = "UPDATE pedidos_servicio SET 
+                estado = :estado_nom, 
+                paso_actual_id = :paso_id,
+                fecha_aprobacion_logistica = NOW(), 
+                id_logistica_aprobador = :log, 
+                observaciones_logistica = :obs 
+                WHERE id = :id";
+        
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([
+            ':estado_nom' => $siguientePaso['nombre_estado'], // pendiente_deposito
+            ':paso_id'    => $siguientePaso['id'],
+            ':log'        => $_SESSION['user_id'], 
+            ':obs'        => $obs, 
+            ':id'         => $id_pedido
+        ]);
+
+        // 4. Notificar al Depósito de Suministros
+        // Nota: La URL lleva a pedidos_ver para que vean el botón "Recibí autorización"
+        $pdo->prepare("INSERT INTO notificaciones (id_rol_destino, mensaje, url_destino) VALUES (?, ?, ?)")
+            ->execute([
+                $siguientePaso['id_rol_responsable'], 
+                "Nueva solicitud aprobada por Logística (ID #$id_pedido). Requiere recepción.", 
+                "pedidos_ver.php?id=" . $id_pedido
+            ]);
 
         $pdo->commit();
         header("Location: dashboard.php?msg=pedido_aprobado");
@@ -51,7 +75,6 @@ include 'includes/sidebar.php';
 include 'includes/navbar.php';
 
 $pedido = $pdo->query("SELECT p.*, u.nombre_completo FROM pedidos_servicio p JOIN usuarios u ON p.id_usuario_solicitante = u.id WHERE p.id = $id_pedido")->fetch();
-// JOIN con suministros_generales
 $items = $pdo->query("SELECT pi.*, sg.nombre, sg.stock_actual FROM pedidos_items pi JOIN suministros_generales sg ON pi.id_suministro = sg.id WHERE pi.id_pedido = $id_pedido")->fetchAll();
 ?>
 
@@ -99,7 +122,7 @@ $items = $pdo->query("SELECT pi.*, sg.nombre, sg.stock_actual FROM pedidos_items
             </div>
             <div class="card-footer text-end">
                 <a href="dashboard.php" class="btn btn-secondary">Cancelar</a>
-                <button type="submit" class="btn btn-success fw-bold">AUTORIZAR ENVÍO A DEPÓSITO</button>
+                <button type="submit" class="btn btn-success fw-bold">AUTORIZAR Y PASAR A DEPÓSITO</button>
             </div>
         </div>
     </form>

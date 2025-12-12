@@ -1,5 +1,6 @@
 <?php
 // Archivo: index.php
+// Propósito: Login Híbrido CORREGIDO (Solución error HY093)
 session_start();
 require 'db.php';
 
@@ -7,33 +8,45 @@ if (isset($_SESSION['user_id'])) { header("Location: dashboard.php"); exit; }
 
 $error = '';
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $email = trim($_POST['email']);
+    // Capturamos el input que puede ser usuario o email
+    $login_input = trim($_POST['login_input']);
     $password = trim($_POST['password']);
     
-    if (empty($email) || empty($password)) {
+    if (empty($login_input) || empty($password)) {
         $error = "Complete los campos.";
     } else {
-        // --- CAMBIO: Traemos también el campo validado_por_admin y datos de servicio ---
-        $stmt = $pdo->prepare("SELECT id, nombre_completo, password, activo, validado_por_admin, rol_en_servicio, servicio FROM usuarios WHERE email = :email");
-        $stmt->execute(['email' => $email]);
+        // CORRECCIÓN TÉCNICA:
+        // Usamos dos etiquetas distintas (:login_email y :login_user) para evitar el error de parámetros
+        $stmt = $pdo->prepare("SELECT id, nombre_completo, usuario, password, activo, validado_por_admin, rol_en_servicio, servicio 
+                               FROM usuarios 
+                               WHERE email = :login_email OR usuario = :login_user");
+        
+        // Pasamos el mismo dato a ambos campos para que busque en los dos lados
+        $stmt->execute([
+            ':login_email' => $login_input,
+            ':login_user'  => $login_input
+        ]);
+        
         $user = $stmt->fetch();
 
         if ($user && password_verify($password, $user['password'])) {
             if ($user['activo'] == 0) {
                  $error = "Cuenta desactivada.";
             } elseif ($user['validado_por_admin'] == 0) {
-                 // --- CAMBIO: Nueva validación ---
-                 $error = "Su cuenta está pendiente de aprobación por la Administración.";
+                 $error = "Su cuenta está pendiente de aprobación.";
             } else {
+                // Login Exitoso
                 $_SESSION['user_id'] = $user['id'];
                 $_SESSION['user_name'] = $user['nombre_completo'];
+                // Guardamos el dato
+                $_SESSION['user_login'] = !empty($user['usuario']) ? $user['usuario'] : $user['email'];
                 
-                // Guardamos datos extras útiles para la lógica de pedidos
                 $_SESSION['user_data'] = [
                     'rol_en_servicio' => $user['rol_en_servicio'],
                     'servicio' => $user['servicio']
                 ];
 
+                // Cargar roles
                 $stmtRoles = $pdo->prepare("SELECT r.nombre FROM roles r JOIN usuario_roles ur ON r.id = ur.id_rol WHERE ur.id_usuario = :id");
                 $stmtRoles->execute(['id' => $user['id']]);
                 $_SESSION['user_roles'] = $stmtRoles->fetchAll(PDO::FETCH_COLUMN);
@@ -108,13 +121,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             </div>
 
             <?php if(!empty($error)): ?>
-                <div class="alert alert-danger text-center py-2 small border-0 bg-danger bg-opacity-10 text-danger mb-3"><?php echo $error; ?></div>
+                <div class="alert alert-danger text-center py-2 small border-0 bg-danger bg-opacity-10 text-danger mb-3">
+                    <?php echo $error; ?>
+                </div>
             <?php endif; ?>
 
             <form method="POST">
                 <div class="mb-3">
-                    <label class="form-label small fw-bold text-secondary">Correo Electrónico</label>
-                    <input type="email" class="form-control" name="email" required placeholder="usuario@actis.com">
+                    <label class="form-label small fw-bold text-secondary">Usuario o Email</label>
+                    <input type="text" class="form-control" name="login_input" required placeholder="Ej: admin o correo@actis.com">
                 </div>
                 <div class="mb-4">
                     <label class="form-label small fw-bold text-secondary">Contraseña</label>

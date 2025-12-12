@@ -1,16 +1,20 @@
 <?php
 // Archivo: includes/sidebar.php
+// Propósito: Menú lateral con lógica de permisos corregida para Insumos
 $current_page = basename($_SERVER['PHP_SELF']);
 
-// Función auxiliar de permisos
 if (!function_exists('tienePermiso')) {
     function tienePermiso($clave) {
         if (in_array('Administrador', $_SESSION['user_roles'] ?? [])) return true;
         global $pdo;
         $user_id = $_SESSION['user_id'] ?? 0;
+        static $permisos_cache = [];
+        if (isset($permisos_cache[$user_id][$clave])) return $permisos_cache[$user_id][$clave];
         $stmt = $pdo->prepare("SELECT COUNT(*) FROM rol_permisos rp JOIN permisos p ON rp.id_permiso=p.id JOIN usuario_roles ur ON rp.id_rol=ur.id_rol WHERE ur.id_usuario=? AND p.clave=?");
         $stmt->execute([$user_id, $clave]);
-        return $stmt->fetchColumn() > 0;
+        $tiene = $stmt->fetchColumn() > 0;
+        $permisos_cache[$user_id][$clave] = $tiene;
+        return $tiene;
     }
 }
 $my_roles = $_SESSION['user_roles'] ?? [];
@@ -23,15 +27,41 @@ $my_roles = $_SESSION['user_roles'] ?? [];
     </div>
 
     <ul class="list-unstyled components p-2">
+        
         <li><div class="section-title">General</div></li>
+        <?php if (tienePermiso('ver_dashboard')): ?>
         <li><a href="dashboard.php" class="<?php echo ($current_page == 'dashboard.php') ? 'active' : ''; ?>"><i class="fas fa-tachometer-alt me-2"></i> Inicio</a></li>
-
-        <li><div class="section-title text-warning">Mi Servicio</div></li>
-        <?php if (tienePermiso('solicitar_insumos')): ?>
-            <li><a href="pedidos_solicitud_interna.php" class="<?php echo ($current_page == 'pedidos_solicitud_interna.php') ? 'active' : ''; ?>"><i class="fas fa-hand-holding-medical me-2"></i> Pedir Insumos</a></li>
         <?php endif; ?>
-        <?php if (tienePermiso('solicitar_suministros')): ?>
-            <li><a href="pedidos_solicitud_interna_suministros.php" class="<?php echo ($current_page == 'pedidos_solicitud_interna_suministros.php') ? 'active' : ''; ?>"><i class="fas fa-dolly me-2"></i> Pedir Suministros</a></li>
+
+        <?php if (tienePermiso('solicitar_insumos') || tienePermiso('solicitar_suministros')): ?>
+            <li><div class="section-title text-warning">Mi Servicio</div></li>
+            <?php if (tienePermiso('solicitar_insumos')): ?>
+                <li><a href="pedidos_solicitud_interna.php" class="<?php echo ($current_page == 'pedidos_solicitud_interna.php') ? 'active' : ''; ?>"><i class="fas fa-hand-holding-medical me-2"></i> Pedir Insumos</a></li>
+            <?php endif; ?>
+            <?php if (tienePermiso('solicitar_suministros')): ?>
+                <li><a href="pedidos_solicitud_interna_suministros.php" class="<?php echo ($current_page == 'pedidos_solicitud_interna_suministros.php') ? 'active' : ''; ?>"><i class="fas fa-dolly me-2"></i> Pedir Suministros</a></li>
+            <?php endif; ?>
+        <?php endif; ?>
+
+        <?php if (tienePermiso('gestionar_planificaciones') || tienePermiso('gestionar_planificaciones_medicas') || tienePermiso('procesar_compra_precios') || tienePermiso('aprobar_planificacion_director')): ?>
+            <li><div class="section-title text-info">Planificación</div></li>
+            
+            <?php if (tienePermiso('gestionar_planificaciones')): ?>
+                <li><a href="suministros_planificacion_panel.php" class="<?php echo ($current_page == 'suministros_planificacion_panel.php') ? 'active' : ''; ?>"><i class="fas fa-tasks me-2"></i> Campañas Suministros</a></li>
+            <?php endif; ?>
+
+            <?php if (tienePermiso('gestionar_planificaciones_medicas')): ?>
+                <li><a href="insumos_planificacion_panel.php" class="<?php echo ($current_page == 'insumos_planificacion_panel.php') ? 'active' : ''; ?>"><i class="fas fa-file-medical me-2"></i> Campañas Insumos</a></li>
+            <?php endif; ?>
+
+            <?php if (tienePermiso('procesar_compra_precios') || tienePermiso('aprobar_planificacion_director')): ?>
+                <?php if (!tienePermiso('gestionar_planificaciones')): ?>
+                    <li><a href="suministros_planificacion_panel.php"><i class="fas fa-box me-2"></i> Campañas Suministros</a></li>
+                <?php endif; ?>
+                <?php if (!tienePermiso('gestionar_planificaciones_medicas')): ?>
+                    <li><a href="insumos_planificacion_panel.php"><i class="fas fa-pills me-2"></i> Campañas Insumos</a></li>
+                <?php endif; ?>
+            <?php endif; ?>
         <?php endif; ?>
 
         <li><div class="section-title">Consultas</div></li>
@@ -42,28 +72,45 @@ $my_roles = $_SESSION['user_roles'] ?? [];
             <li><a href="historial_pedidos.php?tipo=suministros"><i class="fas fa-clipboard-list me-2"></i> Historial Suministros</a></li>
         <?php endif; ?>
 
-        <?php if (tienePermiso('gestion_stock_insumos')): ?>
+        <?php if (tienePermiso('gestion_stock_insumos') || tienePermiso('ver_stock_insumos')): ?>
             <li><div class="section-title">Depósito Insumos</div></li>
-            <li><a href="insumos_stock.php"><i class="fas fa-pills me-2"></i> Stock</a></li>
-            <li><a href="insumos_entregas.php"><i class="fas fa-truck-loading me-2"></i> Entregas</a></li>
+            <?php if (tienePermiso('ver_todos_pedidos_insumos')): ?>
+                <li><a href="historial_pedidos.php?tipo=insumos_medicos&filtro=pendientes"><i class="fas fa-inbox me-2 text-warning"></i> Solicitudes Nuevas</a></li>
+            <?php endif; ?>
+            <li><a href="insumos_stock.php" class="<?php echo ($current_page == 'insumos_stock.php') ? 'active' : ''; ?>"><i class="fas fa-pills me-2"></i> Stock</a></li>
+            <?php if (tienePermiso('ver_entregas_insumos') || tienePermiso('realizar_entrega_insumos')): ?>
+                <li><a href="insumos_entregas.php" class="<?php echo ($current_page == 'insumos_entregas.php') ? 'active' : ''; ?>"><i class="fas fa-truck-loading me-2"></i> Entregas</a></li>
+            <?php endif; ?>
         <?php endif; ?>
 
-        <?php if (tienePermiso('gestion_stock_suministros')): ?>
+        <?php if (tienePermiso('gestion_stock_suministros') || tienePermiso('ver_stock_suministros')): ?>
             <li><div class="section-title">Depósito Suministros</div></li>
-            <li><a href="suministros_stock.php"><i class="fas fa-boxes me-2"></i> Stock</a></li>
-            <li><a href="suministros_entregas.php"><i class="fas fa-dolly me-2"></i> Entregas</a></li>
+            <?php if (tienePermiso('ver_todos_pedidos_suministros')): ?>
+                <li><a href="historial_pedidos.php?tipo=suministros&filtro=pendientes"><i class="fas fa-inbox me-2 text-warning"></i> Solicitudes Nuevas</a></li>
+            <?php endif; ?>
+            <li><a href="suministros_stock.php" class="<?php echo ($current_page == 'suministros_stock.php') ? 'active' : ''; ?>"><i class="fas fa-boxes me-2"></i> Stock</a></li>
+            <?php if (tienePermiso('ver_entregas_suministros') || tienePermiso('realizar_entrega_suministros')): ?>
+                <li><a href="suministros_entregas.php" class="<?php echo ($current_page == 'suministros_entregas.php') ? 'active' : ''; ?>"><i class="fas fa-dolly me-2"></i> Entregas</a></li>
+            <?php endif; ?>
         <?php endif; ?>
 
-        <?php if (in_array('Administrador', $my_roles)): ?>
+        <?php if (tienePermiso('gestion_compras_insumos') || tienePermiso('ver_oc_insumos_todas') || tienePermiso('ver_oc_insumos_propias') || tienePermiso('aprobar_oc_insumos')): ?>
+            <li><div class="section-title">Compras</div></li>
+            <li><a href="insumos_compras.php"><i class="fas fa-file-invoice-dollar me-2"></i> OC Insumos</a></li>
+        <?php endif; ?>
+        
+        <?php if (tienePermiso('gestion_compras_suministros') || tienePermiso('ver_oc_suministros_todas') || tienePermiso('ver_oc_suministros_propias') || tienePermiso('aprobar_oc_suministros')): ?>
+            <?php if (! (tienePermiso('gestion_compras_insumos') || tienePermiso('ver_oc_insumos_todas') || tienePermiso('ver_oc_insumos_propias') || tienePermiso('aprobar_oc_insumos'))): ?>
+                <li><div class="section-title">Compras</div></li>
+            <?php endif; ?>
+            <li><a href="suministros_compras.php"><i class="fas fa-file-invoice me-2"></i> OC Suministros</a></li>
+        <?php endif; ?>
+
+        <?php if (tienePermiso('ver_menu_configuracion')): ?>
             <li><div class="section-title">Configuración</div></li>
-            <li><a href="admin_roles.php" class="<?php echo ($current_page == 'admin_roles.php') ? 'active' : ''; ?>"><i class="fas fa-user-shield me-2"></i> Roles y Permisos</a></li>
-            
-            <li><a href="admin_flujos.php" class="<?php echo ($current_page == 'admin_flujos.php') ? 'active' : ''; ?>"><i class="fas fa-project-diagram me-2"></i> Flujos de Trabajo</a></li>
-            
-            <li><a href="admin_areas.php" class="<?php echo ($current_page == 'admin_areas.php') ? 'active' : ''; ?>"><i class="fas fa-sitemap me-2"></i> Áreas y Servicios</a></li>
-            <li><a href="admin_usuarios.php" class="<?php echo ($current_page == 'admin_usuarios.php') ? 'active' : ''; ?>"><i class="fas fa-users-cog me-2"></i> Usuarios</a></li>
-            <li><a href="admin_auditoria.php" class="<?php echo ($current_page == 'admin_auditoria.php') ? 'active' : ''; ?>"><i class="fas fa-shield-alt me-2"></i> Auditoría</a></li>
-            <li><a href="admin_sistema.php" class="<?php echo ($current_page == 'admin_sistema.php') ? 'active' : ''; ?>"><i class="fas fa-cogs me-2"></i> Sistema</a></li>
+            <li><a href="admin_roles.php"><i class="fas fa-user-shield me-2"></i> Roles</a></li>
+            <li><a href="admin_usuarios.php"><i class="fas fa-users-cog me-2"></i> Usuarios</a></li>
+            <li><a href="admin_sistema.php"><i class="fas fa-cogs me-2"></i> Sistema</a></li>
         <?php endif; ?>
 
         <li class="mt-4 border-top border-secondary pt-2">

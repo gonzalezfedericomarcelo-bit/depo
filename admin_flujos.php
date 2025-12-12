@@ -4,10 +4,7 @@
 require 'db.php';
 session_start();
 
-if (!in_array('Administrador', $_SESSION['user_roles'] ?? [])) {
-    header("Location: dashboard.php"); exit;
-}
-
+if (!tienePermiso('configurar_flujos')) { header("Location: dashboard.php"); exit; }
 $mensaje = "";
 $proceso_seleccionado = $_GET['proceso'] ?? 'movimiento_suministros';
 

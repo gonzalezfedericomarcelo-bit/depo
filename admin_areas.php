@@ -4,10 +4,7 @@
 require 'db.php';
 session_start();
 
-// Solo Admin
-if (!in_array('Administrador', $_SESSION['user_roles'] ?? [])) {
-    header("Location: dashboard.php"); exit;
-}
+if (!tienePermiso('gestionar_areas')) { header("Location: dashboard.php"); exit; }
 
 $mensaje = "";
 

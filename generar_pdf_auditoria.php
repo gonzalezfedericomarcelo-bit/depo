@@ -6,11 +6,7 @@ require 'db.php';
 require 'fpdf/fpdf.php';
 session_start();
 
-// Solo Admin
-$roles_usuario = $_SESSION['user_roles'] ?? [];
-if (!in_array('Administrador', $roles_usuario)) {
-    die("Acceso Denegado");
-}
+if (!tienePermiso('ver_auditoria')) { die("Acceso Denegado"); }
 
 class PDF extends FPDF {
     function Header() {

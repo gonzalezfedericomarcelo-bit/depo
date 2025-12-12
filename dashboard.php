@@ -1,183 +1,311 @@
 <?php
 // Archivo: dashboard.php
-// Propósito: Panel de Control (Permisos Sincronizados)
+// Propósito: SUPER Dashboard Profesional (Blindado contra errores SQL)
 
-require 'db.php';
+try {
+    require 'db.php';
+    if (session_status() === PHP_SESSION_NONE) session_start();
+} catch (Exception $e) { die("Error sistema: " . $e->getMessage()); }
+
 include 'includes/header.php';
-include 'includes/sidebar.php'; // Carga tienePermiso()
+include 'includes/sidebar.php';
 include 'includes/navbar.php';
 
-// 1. SEGURIDAD: Verificar Permiso General
+// 1. SEGURIDAD
 if (!tienePermiso('ver_dashboard')) {
-    echo "<div class='container-fluid px-4 mt-4'>
-            <div class='alert alert-danger shadow-sm'>
-                <h4 class='alert-heading'><i class='fas fa-lock'></i> Acceso Restringido</h4>
-                <p>Tu rol no tiene habilitado el permiso para ver el Panel de Control.</p>
-            </div>
-          </div>";
+    echo "<div class='container mt-5 alert alert-danger shadow-sm border-0'>⛔ Acceso Restringido.</div>";
     include 'includes/footer.php'; exit;
 }
 
-// 2. CONFIGURACIÓN DE ALCANCE
-// Si tiene permiso de ver TODO (Admin/Encargados) o solo lo suyo
-$ver_global = tienePermiso('ver_todos_pedidos_insumos') || tienePermiso('ver_todos_pedidos_suministros');
 $user_id = $_SESSION['user_id'];
-$sql_filtro = $ver_global ? "1=1" : "p.id_usuario_solicitante = $user_id";
+$mi_servicio = $_SESSION['user_data']['servicio'] ?? '';
 
-// 3. DATOS KPI (Contadores)
-$kpis = ['total'=>0, 'pendientes'=>0, 'aprobados'=>0, 'rechazados'=>0];
-$sqlKPI = "SELECT 
-            COUNT(*) as total,
-            SUM(CASE WHEN estado LIKE '%pendiente%' OR estado LIKE '%revision%' OR estado = 'en_preparacion' THEN 1 ELSE 0 END) as pendientes,
-            SUM(CASE WHEN estado LIKE '%aprobado%' OR estado = 'listo_para_retirar' THEN 1 ELSE 0 END) as aprobados,
-            SUM(CASE WHEN estado = 'finalizado_proceso' THEN 1 ELSE 0 END) as finalizados
-           FROM pedidos_servicio p WHERE $sql_filtro";
-$kpis = $pdo->query($sqlKPI)->fetch(PDO::FETCH_ASSOC);
+// --- VARIABLES POR DEFECTO (Evitan pantalla blanca si falla DB) ---
+$campanas = ['abiertas'=>0, 'en_proceso'=>0, 'finalizadas'=>0];
+$stockSum = ['total'=>0, 'criticos'=>0];
+$stockIns = ['total'=>0, 'criticos'=>0];
+$pedidosSum = ['pendientes'=>0, 'finalizados'=>0];
+$pedidosIns = ['pendientes'=>0, 'finalizados'=>0];
+$gastosData = ['labels'=>[], 'data'=>[]];
+$topSuministros = [];
+$topInsumos = [];
+$actividad = [];
 
-// 4. GRÁFICOS
-// Torta (Estados)
-$sqlTorta = "SELECT estado, COUNT(*) as cant FROM pedidos_servicio p WHERE $sql_filtro GROUP BY estado";
-$datos_torta = $pdo->query($sqlTorta)->fetchAll(PDO::FETCH_KEY_PAIR);
+// --- CONSULTAS SEGURAS (Try-Catch por bloque) ---
 
-// Barras (Meses)
-$sqlBarras = "SELECT DATE_FORMAT(fecha_solicitud, '%Y-%m') as mes, COUNT(*) as cant 
-              FROM pedidos_servicio p 
-              WHERE $sql_filtro AND fecha_solicitud >= DATE_SUB(NOW(), INTERVAL 6 MONTH) 
-              GROUP BY mes ORDER BY mes ASC";
-$datos_barras = $pdo->query($sqlBarras)->fetchAll(PDO::FETCH_ASSOC);
+// 1. Campañas
+try {
+    $campanas = $pdo->query("SELECT SUM(CASE WHEN estado='abierta' THEN 1 ELSE 0 END) as abiertas, SUM(CASE WHEN estado='en_compras' OR estado='aprobada_director' THEN 1 ELSE 0 END) as en_proceso, SUM(CASE WHEN estado='orden_generada' THEN 1 ELSE 0 END) as finalizadas FROM compras_planificaciones")->fetch(PDO::FETCH_ASSOC) ?: $campanas;
+} catch(Exception $e){}
 
-// 5. RECIENTES
-$sqlRecientes = "SELECT p.*, u.nombre_completo 
-                 FROM pedidos_servicio p 
-                 JOIN usuarios u ON p.id_usuario_solicitante = u.id 
-                 WHERE $sql_filtro 
-                 ORDER BY p.fecha_solicitud DESC LIMIT 5";
-$recientes = $pdo->query($sqlRecientes)->fetchAll();
+// 2. Stocks
+try {
+    $stockSum = $pdo->query("SELECT COUNT(*) as total, SUM(CASE WHEN stock_actual <= stock_minimo THEN 1 ELSE 0 END) as criticos FROM suministros_generales")->fetch(PDO::FETCH_ASSOC) ?: $stockSum;
+} catch(Exception $e){}
+try {
+    $stockIns = $pdo->query("SELECT COUNT(*) as total, SUM(CASE WHEN stock_actual <= stock_minimo THEN 1 ELSE 0 END) as criticos FROM insumos_medicos")->fetch(PDO::FETCH_ASSOC) ?: $stockIns;
+} catch(Exception $e){}
+
+// 3. Pedidos (Función helper)
+function safeGetPedidos($pdo, $tipo, $uid) {
+    try {
+        $sql = "SELECT COUNT(*) as total, 
+                SUM(CASE WHEN estado NOT IN ('finalizado_proceso', 'rechazada') THEN 1 ELSE 0 END) as pendientes,
+                SUM(CASE WHEN estado='finalizado_proceso' THEN 1 ELSE 0 END) as finalizados
+                FROM pedidos_servicio WHERE tipo_insumo = '$tipo'";
+        if ($uid) $sql .= " AND id_usuario_solicitante = $uid";
+        return $pdo->query($sql)->fetch(PDO::FETCH_ASSOC) ?: ['pendientes'=>0, 'finalizados'=>0];
+    } catch (Exception $e) { return ['pendientes'=>0, 'finalizados'=>0]; }
+}
+
+// 4. Gastos y Tops (Solo si tiene permisos avanzados)
+try {
+    // Intentamos cargar gastos. Si falla la columna precio_unitario, esto salta al catch y no rompe la pagina
+    $rawG = $pdo->query("SELECT DATE_FORMAT(fecha_creacion, '%Y-%m') as mes, SUM(precio_unitario * cantidad_recibida) as total FROM ordenes_compra_items WHERE precio_unitario > 0 GROUP BY mes ORDER BY mes DESC LIMIT 6")->fetchAll(PDO::FETCH_ASSOC);
+    if($rawG) {
+        $gastosData = ['labels'=>array_column(array_reverse($rawG),'mes'), 'data'=>array_column(array_reverse($rawG),'total')];
+    }
+    
+    // Top Suministros
+    $topSuministros = $pdo->query("SELECT s.nombre, SUM(pi.cantidad_solicitada) as total FROM pedidos_items pi JOIN suministros_generales s ON pi.id_suministro = s.id GROUP BY s.nombre ORDER BY total DESC LIMIT 5")->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Top Insumos
+    $topInsumos = $pdo->query("SELECT s.nombre, SUM(pi.cantidad_solicitada) as total FROM pedidos_items pi JOIN insumos_medicos s ON pi.id_insumo = s.id GROUP BY s.nombre ORDER BY total DESC LIMIT 5")->fetchAll(PDO::FETCH_ASSOC);
+
+} catch(Exception $e){}
+
+// 5. Actividad Reciente
+try {
+    $sqlAct = "SELECT p.id, p.fecha_solicitud, u.nombre_completo, p.servicio_solicitante, p.estado, p.tipo_insumo FROM pedidos_servicio p JOIN usuarios u ON p.id_usuario_solicitante = u.id";
+    if (!tienePermiso('ver_todos_pedidos_insumos') && !tienePermiso('ver_todos_pedidos_suministros')) {
+        $sqlAct .= " WHERE p.id_usuario_solicitante = $user_id";
+    }
+    $sqlAct .= " ORDER BY p.fecha_solicitud DESC LIMIT 6";
+    $actividad = $pdo->query($sqlAct)->fetchAll(PDO::FETCH_ASSOC);
+} catch(Exception $e){}
+
+
+// --- PERMISOS ---
+$ve_compras     = tienePermiso('procesar_compra_precios');
+$ve_logistica   = tienePermiso('gestionar_planificaciones');
+$ve_insumos     = tienePermiso('gestion_stock_insumos');
+$ve_director    = tienePermiso('aprobar_planificacion_director');
+$ve_servicio    = tienePermiso('solicitar_insumos'); // Usuario base
+$es_admin       = in_array('Administrador', $_SESSION['user_roles']);
+
+if ($es_admin) { $ve_compras = $ve_logistica = $ve_insumos = $ve_director = true; }
+
+// Asignar pedidos según rol
+$pedidosSum = safeGetPedidos($pdo, 'suministros', ($ve_servicio && !$ve_logistica)?$user_id:null);
+$pedidosIns = safeGetPedidos($pdo, 'insumos_medicos', ($ve_servicio && !$ve_insumos)?$user_id:null);
 ?>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+    .card-dash { border:none; border-radius:10px; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,0.03); transition: all 0.3s ease; }
+    .card-dash:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.08); cursor: pointer; }
+    
+    .bl-primary { border-left: 5px solid #0d6efd; }
+    .bl-success { border-left: 5px solid #198754; }
+    .bl-warning { border-left: 5px solid #ffc107; }
+    .bl-danger  { border-left: 5px solid #dc3545; background-color: #fffbfb; }
+    .bl-info    { border-left: 5px solid #0dcaf0; }
+
+    .icon-circle { width:50px; height:50px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:1.2rem; }
+    .table-activity td { padding: 12px 10px; vertical-align: middle; }
+    .avatar-sm { width:32px; height:32px; background:#e9ecef; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:0.8rem; color:#495057; font-weight:bold; }
+</style>
 
 <div class="container-fluid px-4">
     <div class="d-flex justify-content-between align-items-center mt-4 mb-4">
         <div>
-            <h1 class="fw-bold text-primary mb-0">Panel de Control</h1>
-            <p class="text-muted mb-0">
-                Vista: <?php echo $ver_global ? '<span class="badge bg-danger">GLOBAL (ADMIN/ENCARGADO)</span>' : '<span class="badge bg-success">MI SERVICIO</span>'; ?>
-            </p>
+            <h3 class="fw-bold text-dark mb-0">Hola, <?php echo htmlspecialchars($_SESSION['user_name']); ?> 👋</h3>
+            <p class="text-muted small mb-0">Panel de Control</p>
+        </div>
+        
+        <div class="d-flex gap-2">
+            <?php if($ve_logistica): ?>
+                <a href="suministros_planificacion_panel.php" class="btn btn-sm btn-dark shadow-sm"><i class="fas fa-plus me-1"></i> Nueva Campaña</a>
+            <?php endif; ?>
+            <?php if($ve_servicio && !$ve_logistica && !$ve_insumos): ?>
+                <a href="pedidos_solicitud_interna_suministros.php" class="btn btn-sm btn-warning shadow-sm fw-bold text-dark"><i class="fas fa-box me-1"></i> Pedir Suministros</a>
+                <a href="pedidos_solicitud_interna.php" class="btn btn-sm btn-primary shadow-sm fw-bold"><i class="fas fa-pills me-1"></i> Pedir Insumos</a>
+            <?php endif; ?>
         </div>
     </div>
 
+    <?php if($ve_logistica || $ve_compras || $ve_director): ?>
     <div class="row g-3 mb-4">
-        <div class="col-xl-3 col-md-6">
-            <div class="card bg-primary text-white h-100 shadow-sm border-0 clickable-card" onclick="window.location='historial_pedidos.php'">
+        <div class="col-md-4">
+            <div class="card card-dash bl-info h-100" onclick="window.location='suministros_planificacion_panel.php'">
                 <div class="card-body d-flex justify-content-between align-items-center">
-                    <div><div class="text-white-50 small fw-bold">TOTAL</div><div class="display-6 fw-bold"><?php echo $kpis['total']; ?></div></div>
-                    <i class="fas fa-folder-open fa-3x text-white-50"></i>
+                    <div>
+                        <span class="text-muted small fw-bold text-uppercase">Planificación</span>
+                        <h2 class="mb-0 fw-bold"><?php echo (int)$campanas['en_proceso']; ?></h2>
+                        <small class="text-info">En Proceso</small>
+                    </div>
+                    <div class="icon-circle bg-info bg-opacity-10 text-info"><i class="fas fa-tasks"></i></div>
                 </div>
             </div>
         </div>
-        <div class="col-xl-3 col-md-6">
-            <div class="card bg-warning text-dark h-100 shadow-sm border-0 clickable-card" onclick="window.location='historial_pedidos.php'">
+        <div class="col-md-4">
+            <div class="card card-dash bl-success h-100" onclick="window.location='suministros_planificacion_panel.php'">
                 <div class="card-body d-flex justify-content-between align-items-center">
-                    <div><div class="text-dark-50 small fw-bold">EN PROCESO</div><div class="display-6 fw-bold"><?php echo $kpis['pendientes']; ?></div></div>
-                    <i class="fas fa-clock fa-3x text-dark-50 opacity-50"></i>
+                    <div>
+                        <span class="text-muted small fw-bold text-uppercase">Abiertas</span>
+                        <h2 class="mb-0 fw-bold"><?php echo (int)$campanas['abiertas']; ?></h2>
+                        <small class="text-success">Recibiendo Pedidos</small>
+                    </div>
+                    <div class="icon-circle bg-success bg-opacity-10 text-success"><i class="fas fa-door-open"></i></div>
                 </div>
             </div>
         </div>
-        <div class="col-xl-3 col-md-6">
-            <div class="card bg-info text-white h-100 shadow-sm border-0 clickable-card" onclick="window.location='historial_pedidos.php'">
+        <div class="col-md-4">
+            <div class="card card-dash bl-primary h-100" onclick="window.location='suministros_compras.php'">
                 <div class="card-body d-flex justify-content-between align-items-center">
-                    <div><div class="text-white-50 small fw-bold">LISTOS RETIRO</div><div class="display-6 fw-bold"><?php echo $kpis['aprobados']; ?></div></div>
-                    <i class="fas fa-check-circle fa-3x text-white-50"></i>
-                </div>
-            </div>
-        </div>
-        <div class="col-xl-3 col-md-6">
-            <div class="card bg-success text-white h-100 shadow-sm border-0 clickable-card" onclick="window.location='historial_pedidos.php'">
-                <div class="card-body d-flex justify-content-between align-items-center">
-                    <div><div class="text-white-50 small fw-bold">FINALIZADOS</div><div class="display-6 fw-bold"><?php echo $kpis['finalizados']; ?></div></div>
-                    <i class="fas fa-archive fa-3x text-white-50"></i>
+                    <div>
+                        <span class="text-muted small fw-bold text-uppercase">Finalizadas</span>
+                        <h2 class="mb-0 fw-bold"><?php echo (int)$campanas['finalizadas']; ?></h2>
+                        <small class="text-primary">OC Generadas</small>
+                    </div>
+                    <div class="icon-circle bg-primary bg-opacity-10 text-primary"><i class="fas fa-file-invoice"></i></div>
                 </div>
             </div>
         </div>
     </div>
+    <?php endif; ?>
 
-    <div class="row mb-4">
+    <div class="row g-4 mb-4">
+        
+        <?php if($ve_logistica || $ve_director): ?>
+        <?php $critS = $stockSum['criticos'] > 0; ?>
+        <div class="col-md-3">
+            <div class="card card-dash h-100 <?php echo $critS?'bl-danger':'bl-success'; ?>" 
+                 onclick="window.location='suministros_stock.php<?php echo $critS?'?filtro=critico':''; ?>'">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="text-muted small fw-bold text-uppercase">Stock Suministros</span>
+                        <h2 class="mb-0 fw-bold <?php echo $critS?'text-danger':''; ?>"><?php echo (int)$stockSum['total']; ?></h2>
+                        <?php if($critS): ?><small class="text-danger fw-bold"><i class="fas fa-exclamation-circle"></i> <?php echo $stockSum['criticos']; ?> Críticos</small><?php endif; ?>
+                    </div>
+                    <div class="icon-circle <?php echo $critS?'bg-danger text-white':'bg-success bg-opacity-10 text-success'; ?>"><i class="fas fa-boxes"></i></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card card-dash bl-warning h-100" onclick="window.location='historial_pedidos.php?tipo=suministros&filtro=pendientes'">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="text-muted small fw-bold text-uppercase">Pedidos Sum.</span>
+                        <h2 class="mb-0 fw-bold text-warning"><?php echo (int)$pedidosSum['pendientes']; ?></h2>
+                        <small class="text-muted">Pendientes</small>
+                    </div>
+                    <div class="icon-circle bg-warning bg-opacity-10 text-warning"><i class="fas fa-inbox"></i></div>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?>
+
+        <?php if($ve_insumos || $ve_director): ?>
+        <?php $critI = $stockIns['criticos'] > 0; ?>
+        <div class="col-md-3">
+            <div class="card card-dash h-100 <?php echo $critI?'bl-danger':'bl-primary'; ?>" 
+                 onclick="window.location='insumos_stock.php<?php echo $critI?'?filtro=critico':''; ?>'">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="text-muted small fw-bold text-uppercase">Stock Insumos</span>
+                        <h2 class="mb-0 fw-bold <?php echo $critI?'text-danger':''; ?>"><?php echo (int)$stockIns['total']; ?></h2>
+                        <?php if($critI): ?><small class="text-danger fw-bold"><i class="fas fa-heart-broken"></i> <?php echo $stockIns['criticos']; ?> Críticos</small><?php endif; ?>
+                    </div>
+                    <div class="icon-circle <?php echo $critI?'bg-danger text-white':'bg-primary bg-opacity-10 text-primary'; ?>"><i class="fas fa-pills"></i></div>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?>
+    </div>
+
+    <div class="row g-4 mb-4">
         <div class="col-lg-8">
-            <div class="card shadow-sm h-100">
-                <div class="card-header bg-white fw-bold">Evolución de Pedidos</div>
-                <div class="card-body">
-                    <canvas id="chartBarras" height="100"></canvas>
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white py-3 border-bottom-0">
+                    <h6 class="m-0 fw-bold text-dark"><i class="fas fa-chart-line me-2 text-success"></i> Evolución de Gastos</h6>
                 </div>
-            </div>
-        </div>
-        <div class="col-lg-4">
-            <div class="card shadow-sm h-100">
-                <div class="card-header bg-white fw-bold">Estado Actual</div>
-                <div class="card-body">
-                    <canvas id="chartTorta" height="200"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="card shadow-sm mb-4">
-        <div class="card-header bg-white d-flex justify-content-between align-items-center">
-            <span class="fw-bold">Últimos Movimientos</span>
-            <a href="historial_pedidos.php" class="btn btn-sm btn-light text-primary fw-bold">Ver Historial Completo</a>
-        </div>
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="table-light small">
-                    <tr><th>ID</th><th>Fecha</th><th>Solicitante</th><th>Estado</th><th class="text-end"></th></tr>
-                </thead>
-                <tbody>
-                    <?php if(count($recientes)>0): ?>
-                        <?php foreach($recientes as $r): ?>
-                        <tr style="cursor: pointer;" onclick="window.location='pedidos_ver.php?id=<?php echo $r['id']; ?>'">
-                            <td><span class="badge bg-light text-dark border">#<?php echo $r['id']; ?></span></td>
-                            <td><?php echo date('d/m H:i', strtotime($r['fecha_solicitud'])); ?></td>
-                            <td><?php echo htmlspecialchars($r['nombre_completo']); ?></td>
-                            <td><span class="badge bg-secondary"><?php echo $r['estado']; ?></span></td>
-                            <td class="text-end"><i class="fas fa-chevron-right text-muted small"></i></td>
-                        </tr>
-                        <?php endforeach; ?>
+                <div class="card-body pt-0">
+                    <?php if(!empty($gastosData['data'])): ?>
+                        <div style="height: 250px;"><canvas id="chartGastos"></canvas></div>
                     <?php else: ?>
-                        <tr><td colspan="5" class="text-center text-muted py-3">Sin movimientos.</td></tr>
+                        <div class="text-center py-5 text-muted">Sin datos financieros aún.</div>
                     <?php endif; ?>
-                </tbody>
-            </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white py-3 border-bottom-0 d-flex justify-content-between">
+                    <h6 class="m-0 fw-bold text-dark"><i class="fas fa-history me-2 text-secondary"></i> Actividad</h6>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-activity mb-0">
+                            <tbody>
+                                <?php if(count($actividad) > 0): ?>
+                                    <?php foreach($actividad as $a): ?>
+                                    <tr onclick="window.location='pedidos_ver.php?id=<?php echo $a['id']; ?>'" style="cursor:pointer;">
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="avatar-sm me-2"><?php echo strtoupper(substr($a['nombre_completo'],0,1)); ?></div>
+                                                <div>
+                                                    <span class="d-block small fw-bold"><?php echo htmlspecialchars($a['servicio_solicitante']); ?></span>
+                                                    <span class="d-block x-small text-muted" style="font-size:0.7rem;"><?php echo date('d/m H:i', strtotime($a['fecha_solicitud'])); ?></span>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="text-end">
+                                            <?php 
+                                                $st = $a['estado'];
+                                                $cls = 'bg-secondary';
+                                                if(strpos($st,'aprobado')!==false) $cls='bg-info text-dark';
+                                                if($st=='listo_para_retirar') $cls='bg-warning text-dark';
+                                                if($st=='finalizado_proceso') $cls='bg-success';
+                                                echo "<span class='badge $cls'>".str_replace('_',' ',$st)."</span>";
+                                            ?>
+                                        </td>
+                                    </tr>
+                                    <?php endforeach; ?>
+                                <?php else: ?>
+                                    <tr><td class="text-center py-4 text-muted">Sin actividad.</td></tr>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-// Datos PHP -> JS
-const dataTorta = <?php echo json_encode($datos_torta); ?>;
-const dataBarras = <?php echo json_encode($datos_barras); ?>;
-
-// 1. TORTA
-if (document.getElementById('chartTorta')) {
-    new Chart(document.getElementById('chartTorta').getContext('2d'), {
-        type: 'doughnut',
-        data: {
-            labels: Object.keys(dataTorta).map(s => s.replace(/_/g, ' ').toUpperCase()),
-            datasets: [{ data: Object.values(dataTorta), backgroundColor: ['#ffc107', '#198754', '#0dcaf0', '#dc3545', '#6c757d'], borderWidth: 1 }]
-        },
-        options: { responsive: true }
-    });
-}
-
-// 2. BARRAS
-if (document.getElementById('chartBarras')) {
-    new Chart(document.getElementById('chartBarras').getContext('2d'), {
-        type: 'bar',
-        data: {
-            labels: dataBarras.map(d => d.mes),
-            datasets: [{ label: 'Pedidos', data: dataBarras.map(d => d.cant), backgroundColor: '#0d6efd', borderRadius: 4 }]
-        },
-        options: { responsive: true, scales: { y: { beginAtZero: true } } }
-    });
-}
+    <?php if(!empty($gastosData['data'])): ?>
+    const ctxGastos = document.getElementById('chartGastos');
+    if (ctxGastos) {
+        new Chart(ctxGastos, {
+            type: 'line',
+            data: {
+                labels: <?php echo json_encode($gastosData['labels']); ?>,
+                datasets: [{
+                    label: 'Gastos ($)',
+                    data: <?php echo json_encode($gastosData['data']); ?>,
+                    borderColor: '#198754',
+                    backgroundColor: 'rgba(25, 135, 84, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { borderDash: [5, 5] } }, x: { grid: { display: false } } } }
+        });
+    }
+    <?php endif; ?>
 </script>
 <?php include 'includes/footer.php'; ?>

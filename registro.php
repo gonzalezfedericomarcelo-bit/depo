@@ -1,26 +1,28 @@
 <?php
 // Archivo: registro.php
-// Propósito: Formulario de registro para usuarios de servicios (Laboratorio, Odontología, etc.)
+// Propósito: Formulario de registro con campo Usuario
+
 require 'db.php';
 
 $mensaje = "";
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $nombre = trim($_POST['nombre']);
+    $usuario = trim($_POST['usuario']); // Nuevo campo
     $email = trim($_POST['email']);
     $pass = $_POST['password'];
     $pass2 = $_POST['confirm_password'];
     
-    // Campos nuevos
+    // Campos
     $destino = $_POST['destino'];
     $servicio = $_POST['servicio'];
     $grado = $_POST['grado_militar'];
-    $rol_serv = $_POST['rol_servicio']; // Responsable o Personal
+    $rol_serv = $_POST['rol_servicio'];
     $telefono = $_POST['telefono'];
     $interno = $_POST['interno'];
 
     try {
-        // 1. Validaciones básicas
+        // 1. Validaciones
         if ($pass != $pass2) throw new Exception("Las contraseñas no coinciden.");
         
         // 2. Validar duplicidad de correo
@@ -28,7 +30,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $stmtEmail->execute([':e' => $email]);
         if ($stmtEmail->fetch()) throw new Exception("El correo ya está registrado.");
 
-        // 3. Validar que solo haya UN responsable por servicio
+        // 3. Validar duplicidad de usuario (si se ingresó uno)
+        if (!empty($usuario)) {
+            $stmtUser = $pdo->prepare("SELECT id FROM usuarios WHERE usuario = :u");
+            $stmtUser->execute([':u' => $usuario]);
+            if ($stmtUser->fetch()) throw new Exception("El nombre de usuario '$usuario' ya está en uso.");
+        }
+
+        // 4. Validar Responsable único
         if ($rol_serv == 'Responsable') {
             $stmtCheck = $pdo->prepare("SELECT count(*) FROM usuarios WHERE servicio = :serv AND rol_en_servicio = 'Responsable' AND activo = 1");
             $stmtCheck->execute([':serv' => $servicio]);
@@ -37,24 +46,21 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             }
         }
 
-        // 4. Insertar Usuario (validado_por_admin = 0)
+        // 5. Insertar
         $pass_hash = password_hash($pass, PASSWORD_DEFAULT);
         
-        // Asignamos un rol por defecto "Usuario Servicio" (ID ficticio 99 o crearlo en BD, 
-        // por ahora no asignamos rol en tabla 'roles' hasta que el admin valide y asigne si corresponde,
-        // O podemos asignarle un rol básico. Dejaremos sin rol en tabla 'usuario_roles' por ahora).
-        
-        $sql = "INSERT INTO usuarios (nombre_completo, email, password, destino, servicio, grado_militar, rol_en_servicio, telefono, numero_interno, activo, validado_por_admin) 
-                VALUES (:nom, :mail, :pass, :dest, :serv, :grado, :rol, :tel, :int, 1, 0)";
+        $sql = "INSERT INTO usuarios (nombre_completo, usuario, email, password, destino, servicio, grado_militar, rol_en_servicio, telefono, numero_interno, activo, validado_por_admin) 
+                VALUES (:nom, :user, :mail, :pass, :dest, :serv, :grado, :rol, :tel, :int, 1, 0)";
         
         $stmt = $pdo->prepare($sql);
         $stmt->execute([
-            ':nom' => $nombre, ':mail' => $email, ':pass' => $pass_hash,
+            ':nom' => $nombre, ':user' => !empty($usuario) ? $usuario : null, 
+            ':mail' => $email, ':pass' => $pass_hash,
             ':dest' => $destino, ':serv' => $servicio, ':grado' => $grado,
             ':rol' => $rol_serv, ':tel' => $telefono, ':int' => $interno
         ]);
 
-        // 5. Notificar al Administrador
+        // 6. Notificar
         $stmtRol = $pdo->query("SELECT id FROM roles WHERE nombre = 'Administrador' LIMIT 1");
         $idRolAdmin = $stmtRol->fetchColumn();
 
@@ -64,7 +70,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 ->execute([$idRolAdmin, $msj, 'admin_usuarios.php']);
         }
 
-        $mensaje = '<div class="alert alert-success">✅ Solicitud enviada. El administrador debe aprobar tu cuenta antes de ingresar. <a href="index.php" class="fw-bold">Volver al Login</a></div>';
+        $mensaje = '<div class="alert alert-success">✅ Solicitud enviada. El administrador debe aprobar tu cuenta. <a href="index.php" class="fw-bold">Volver al Login</a></div>';
 
     } catch (Exception $e) {
         $mensaje = '<div class="alert alert-danger">Error: ' . $e->getMessage() . '</div>';
@@ -92,11 +98,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 <h6 class="text-primary mb-3">Datos Personales</h6>
                 <div class="row mb-3">
                     <div class="col-md-6"><label class="form-label small fw-bold">Nombre Completo *</label><input type="text" name="nombre" class="form-control" required></div>
-                    <div class="col-md-6"><label class="form-label small fw-bold">Grado Militar</label><input type="text" name="grado_militar" class="form-control" placeholder="Ej: Sargento"></div>
+                    <div class="col-md-6"><label class="form-label small fw-bold">Usuario (Opcional)</label><input type="text" name="usuario" class="form-control" placeholder="Ej: ggonzalez"></div>
                 </div>
                 <div class="row mb-3">
                     <div class="col-md-6"><label class="form-label small fw-bold">Correo Electrónico *</label><input type="email" name="email" class="form-control" required></div>
-                    <div class="col-md-6"><label class="form-label small fw-bold">Teléfono *</label><input type="text" name="telefono" class="form-control" required></div>
+                    <div class="col-md-6"><label class="form-label small fw-bold">Grado / Cargo</label><input type="text" name="grado_militar" class="form-control"></div>
+                </div>
+                
+                <div class="row mb-3">
+                     <div class="col-md-6"><label class="form-label small fw-bold">Teléfono *</label><input type="text" name="telefono" class="form-control" required></div>
                 </div>
 
                 <hr>
@@ -117,6 +127,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                             <option value="Internación">Internación</option>
                             <option value="Rayos">Rayos</option>
                             <option value="Enfermería">Enfermería</option>
+                            <option value="Farmacia">Farmacia</option>
                         </select>
                     </div>
                     <div class="col-md-6">
