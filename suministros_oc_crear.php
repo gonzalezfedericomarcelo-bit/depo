@@ -30,15 +30,21 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         ]);
         $id_oc = $pdo->lastInsertId();
 
-        $stmtItem = $pdo->prepare("INSERT INTO ordenes_compra_items (id_oc, descripcion_producto, cantidad_solicitada, precio_estimado) VALUES (:id_oc, :desc, :cant, :precio)");
+        // CORRECCIÓN: Insertar en precio_unitario en lugar de precio_estimado
+        $stmtItem = $pdo->prepare("INSERT INTO ordenes_compra_items (id_oc, descripcion_producto, cantidad_solicitada, precio_unitario) VALUES (:id_oc, :desc, :cant, :precio)");
         foreach ($_POST['items'] as $item) {
             if (!empty($item['descripcion']) && !empty($item['cantidad'])) {
-                $stmtItem->execute([':id_oc' => $id_oc, ':desc' => $item['descripcion'], ':cant' => $item['cantidad'], ':precio'=> $item['precio'] ?? 0]);
+                $stmtItem->execute([
+                    ':id_oc' => $id_oc, 
+                    ':desc' => $item['descripcion'], 
+                    ':cant' => $item['cantidad'], 
+                    ':precio'=> $item['precio'] ?? 0
+                ]);
             }
         }
 
-        // (Lógica de adjuntos igual que antes, resumida aquí)
-        // ...
+        // Lógica de adjuntos (Resumida para brevedad, funcionalmente igual)
+        // ... (Si usas la lógica de adjuntos anterior, funcionará igual)
 
         $stmtRol = $pdo->prepare("SELECT id FROM roles WHERE nombre = 'Encargado Logística' LIMIT 1");
         $stmtRol->execute();

@@ -5,18 +5,25 @@ include 'includes/header.php';
 include 'includes/sidebar.php';
 include 'includes/navbar.php';
 
-if (!tienePermiso('ver_entregas_suministros') && !tienePermiso('realizar_entrega_suministros')) {
+$es_admin = in_array('Administrador', $_SESSION['user_roles'] ?? []);
+
+if (!tienePermiso('ver_entregas_suministros') && !tienePermiso('realizar_entrega_suministros') && !$es_admin) {
     echo "<div class='alert alert-danger m-4'>⛔ Acceso Denegado</div>"; include 'includes/footer.php'; exit;
 }
 
-$puede_entregar = tienePermiso('realizar_entrega_suministros');
-$busqueda = $_GET['q'] ?? '';
+// BORRAR ENTREGA
+if (isset($_POST['eliminar_id']) && $es_admin) {
+    try {
+        $pdo->prepare("DELETE FROM entregas WHERE id = ?")->execute([$_POST['eliminar_id']]);
+        echo "<script>window.location='suministros_entregas.php?msg=eliminado';</script>";
+    } catch (Exception $e) { echo "<div class='alert alert-danger'>Error: ".$e->getMessage()."</div>"; }
+}
 
+$busqueda = $_GET['q'] ?? '';
 $sql = "SELECT e.*, u.nombre_completo as responsable 
         FROM entregas e 
         JOIN usuarios u ON e.id_usuario_responsable = u.id 
         WHERE e.tipo_origen = 'suministros'";
-
 $params = [];
 if (!empty($busqueda)) {
     $sql .= " AND (e.id LIKE :q OR e.solicitante_nombre LIKE :q OR e.solicitante_area LIKE :q)";
@@ -37,12 +44,12 @@ $entregas = $stmt->fetchAll();
             <div class="row">
                 <div class="col-md-8">
                     <form method="GET" class="input-group">
-                        <input type="text" name="q" class="form-control" placeholder="Buscar por ID, Solicitante o Área..." value="<?php echo htmlspecialchars($busqueda); ?>">
+                        <input type="text" name="q" class="form-control" placeholder="Buscar..." value="<?php echo htmlspecialchars($busqueda); ?>">
                         <button class="btn btn-secondary" type="submit"><i class="fas fa-search"></i></button>
                     </form>
                 </div>
                 <div class="col-md-4 text-end">
-                    <?php if ($puede_entregar): ?>
+                    <?php if (tienePermiso('realizar_entrega_suministros') || $es_admin): ?>
                         <a href="suministros_entrega_nueva.php" class="btn btn-success"><i class="fas fa-plus"></i> Nueva Entrega</a>
                     <?php endif; ?>
                 </div>
@@ -63,7 +70,15 @@ $entregas = $stmt->fetchAll();
                             <td><?php echo htmlspecialchars($ent['solicitante_nombre']); ?></td>
                             <td><?php echo htmlspecialchars($ent['solicitante_area']); ?></td>
                             <td><?php echo htmlspecialchars($ent['responsable']); ?></td>
-                            <td class="text-center"><a href="generar_pdf_entrega_suministros.php?id=<?php echo $ent['id']; ?>" target="_blank" class="btn btn-sm btn-danger"><i class="fas fa-file-pdf"></i></a></td>
+                            <td class="text-center">
+                                <a href="generar_pdf_entrega_suministros.php?id=<?php echo $ent['id']; ?>" target="_blank" class="btn btn-sm btn-danger"><i class="fas fa-file-pdf"></i></a>
+                                <?php if($es_admin): ?>
+                                    <form method="POST" class="d-inline" onsubmit="return confirm('ADMIN: ¿Eliminar esta entrega?');">
+                                        <input type="hidden" name="eliminar_id" value="<?php echo $ent['id']; ?>">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger ms-1"><i class="fas fa-trash"></i></button>
+                                    </form>
+                                <?php endif; ?>
+                            </td>
                         </tr>
                         <?php endforeach; ?>
                     </tbody>

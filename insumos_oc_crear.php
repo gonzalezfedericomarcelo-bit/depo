@@ -38,8 +38,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         ]);
         $id_oc = $pdo->lastInsertId();
 
-        // 2. Insertar Ítems
-        $stmtItem = $pdo->prepare("INSERT INTO ordenes_compra_items (id_oc, descripcion_producto, cantidad_solicitada, precio_estimado) VALUES (:id_oc, :desc, :cant, :precio)");
+        // 2. Insertar Ítems (CORRECCIÓN: precio_unitario)
+        $stmtItem = $pdo->prepare("INSERT INTO ordenes_compra_items (id_oc, descripcion_producto, cantidad_solicitada, precio_unitario) VALUES (:id_oc, :desc, :cant, :precio)");
         foreach ($_POST['items'] as $item) {
             if (!empty($item['descripcion']) && !empty($item['cantidad'])) {
                 $stmtItem->execute([

@@ -1,5 +1,7 @@
 <?php
 // Archivo: suministros_planificacion_panel.php
+// Propósito: Panel de Campañas SUMINISTROS (Con Vencimiento por Hora y Selección Manual)
+
 require 'db.php';
 include 'includes/header.php';
 include 'includes/sidebar.php';
@@ -9,26 +11,44 @@ include 'includes/navbar.php';
 $es_logistica = tienePermiso('gestionar_planificaciones');
 $es_director  = tienePermiso('aprobar_planificacion_director');
 $es_compras   = tienePermiso('procesar_compra_precios');
+$es_admin     = in_array('Administrador', $_SESSION['user_roles'] ?? []);
 
-if (!$es_logistica && !$es_director && !$es_compras) {
-    echo "<div class='container mt-5'><div class='alert alert-danger shadow-sm'>⛔ Acceso Denegado.</div></div>";
-    include 'includes/footer.php'; exit;
+if (!$es_logistica && !$es_director && !$es_compras && !$es_admin) {
+    echo "<div class='container mt-5 alert alert-danger'>⛔ Acceso Denegado.</div>"; include 'includes/footer.php'; exit;
 }
 
-// CREAR
+// BORRAR
+if (isset($_POST['eliminar_id']) && $es_admin) {
+    try {
+        $pdo->prepare("DELETE FROM compras_planificaciones WHERE id = ?")->execute([$_POST['eliminar_id']]);
+        echo "<script>window.location='suministros_planificacion_panel.php?msg=eliminado';</script>";
+    } catch (Exception $e) { echo "<div class='alert alert-danger'>Error: " . $e->getMessage() . "</div>"; }
+}
+
+// CREAR CAMPAÑA
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['crear_campana'])) {
-    if (!$es_logistica) { die("Acceso denegado."); }
+    if (!$es_logistica && !$es_admin) { die("Acceso denegado."); }
     try {
         $pdo->beginTransaction();
-        $stmt = $pdo->prepare("INSERT INTO compras_planificaciones (titulo, fecha_inicio, fecha_fin, creado_por) VALUES (:tit, :ini, :fin, :user)");
-        $stmt->execute([':tit'=>$_POST['titulo'], ':ini'=>$_POST['fecha_inicio'], ':fin'=>$_POST['fecha_fin'], ':user'=>$_SESSION['user_id']]);
+        
+        $sql = "INSERT INTO compras_planificaciones (titulo, frecuencia_cobertura, fecha_inicio, fecha_fin, creado_por, tipo_insumo, estado) 
+                VALUES (:tit, :freq, :ini, :fin, :user, 'suministros', 'abierta')";
+        
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([
+            ':tit' => $_POST['titulo'],
+            ':freq'=> $_POST['frecuencia_cobertura'],
+            ':ini' => $_POST['fecha_inicio'],
+            ':fin' => $_POST['fecha_cierre'], // HORA EXACTA
+            ':user'=> $_SESSION['user_id']
+        ]);
         
         // Notificar
         $rolSolicitante = obtenerIdRolPorPermiso('solicitar_suministros');
         if ($rolSolicitante) {
-            $msg = "📢 Nueva Campaña: " . $_POST['titulo'];
+            $msg = "📢 Campaña SUMINISTROS (" . $_POST['frecuencia_cobertura'] . "): " . $_POST['titulo'];
             $pdo->prepare("INSERT INTO notificaciones (id_rol_destino, mensaje, url_destino) VALUES (?,?,?)")
-                ->execute([$rolSolicitante, $msg, 'pedidos_solicitud_interna_suministros.php']);
+                ->execute([$rolSolicitante, $msg, 'campana_carga_suministros.php']); 
         }
         $pdo->commit();
         echo "<script>window.location='suministros_planificacion_panel.php?msg=ok';</script>";
@@ -37,126 +57,116 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['crear_campana'])) {
     }
 }
 
-// --- FILTROS Y BÚSQUEDA ---
+// LISTADO
 $busqueda = $_GET['q'] ?? '';
 $filtro_estado = $_GET['estado'] ?? '';
-
-$sql = "SELECT * FROM compras_planificaciones WHERE 1=1";
-$params = [];
-
-if (!empty($busqueda)) {
-    $sql .= " AND titulo LIKE :q";
-    $params[':q'] = "%$busqueda%";
-}
-if (!empty($filtro_estado)) {
-    $sql .= " AND estado = :est";
-    $params[':est'] = $filtro_estado;
-}
+$sql = "SELECT * FROM compras_planificaciones WHERE tipo_insumo = 'suministros'";
+if (!empty($busqueda)) { $sql .= " AND titulo LIKE '%$busqueda%'"; }
+if (!empty($filtro_estado)) { $sql .= " AND estado = '$filtro_estado'"; }
 $sql .= " ORDER BY id DESC";
-
-$stmt = $pdo->prepare($sql);
-$stmt->execute($params);
-$planificaciones = $stmt->fetchAll();
+$planificaciones = $pdo->query($sql)->fetchAll();
 ?>
 
 <div class="container-fluid px-4">
-    <h1 class="mt-4">Planificación de Adquisiciones</h1>
-    
-    <div class="card mb-4 shadow-sm border-0 bg-light">
-        <div class="card-body">
-            <div class="row align-items-center">
-                <div class="col-md-8">
-                    <form method="GET" class="row g-2">
-                        <div class="col-md-5">
-                            <div class="input-group">
-                                <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
-                                <input type="text" name="q" class="form-control border-start-0 ps-0" placeholder="Buscar por título..." value="<?php echo htmlspecialchars($busqueda); ?>">
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <select name="estado" class="form-select" onchange="this.form.submit()">
-                                <option value="">Todos los Estados</option>
-                                <option value="abierta" <?php echo ($filtro_estado=='abierta')?'selected':''; ?>>Abierta</option>
-                                <option value="cerrada_logistica" <?php echo ($filtro_estado=='cerrada_logistica')?'selected':''; ?>>En Revisión</option>
-                                <option value="aprobada_director" <?php echo ($filtro_estado=='aprobada_director')?'selected':''; ?>>En Compras</option>
-                                <option value="orden_generada" <?php echo ($filtro_estado=='orden_generada')?'selected':''; ?>>Finalizada</option>
-                            </select>
-                        </div>
-                        <div class="col-md-3">
-                            <button type="submit" class="btn btn-secondary w-100">Filtrar</button>
-                        </div>
-                    </form>
-                </div>
-                <div class="col-md-4 text-end">
-                    <?php if ($es_logistica): ?>
-                    <button class="btn btn-primary fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#modalNueva">
-                        <i class="fas fa-plus me-2"></i> Nueva Convocatoria
-                    </button>
-                    <?php endif; ?>
-                </div>
-            </div>
-        </div>
+    <div class="d-flex justify-content-between align-items-center mt-4 mb-3">
+        <h1 class="fw-bold text-success">Planificación Suministros</h1>
+        <?php if ($es_logistica || $es_admin): ?>
+            <button class="btn btn-success fw-bold shadow" data-bs-toggle="modal" data-bs-target="#modalNueva">
+                <i class="fas fa-plus me-2"></i> Nueva Campaña
+            </button>
+        <?php endif; ?>
     </div>
-
-    <div class="card mb-4 border-primary shadow-sm">
-        <div class="card-header bg-primary text-white">Resultados</div>
+    
+    <div class="card mb-4 border-success shadow-sm">
         <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-striped table-hover mb-0 align-middle">
-                    <thead class="table-light">
-                        <tr><th>Título</th><th>Vigencia</th><th>Estado</th><th class="text-end">Acciones</th></tr>
-                    </thead>
-                    <tbody>
-                        <?php if(count($planificaciones) > 0): ?>
-                            <?php foreach($planificaciones as $p): ?>
-                            <tr>
-                                <td class="fw-bold"><?php echo htmlspecialchars($p['titulo']); ?></td>
-                                <td>
-                                    <small class="text-muted d-block">Inicio: <?php echo date('d/m/Y', strtotime($p['fecha_inicio'])); ?></small>
-                                    <span class="text-danger fw-bold">Cierre: <?php echo date('d/m/Y', strtotime($p['fecha_fin'])); ?></span>
-                                </td>
-                                <td>
-                                    <?php 
-                                        $badges = ['abierta'=>'bg-success', 'cerrada_logistica'=>'bg-warning text-dark', 'aprobada_director'=>'bg-info text-dark', 'en_compras'=>'bg-primary', 'orden_generada'=>'bg-dark'];
-                                        $lbl = ($p['estado'] == 'aprobada_director') ? 'Lista para Compras' : strtoupper(str_replace('_',' ',$p['estado']));
-                                        echo "<span class='badge ".$badges[$p['estado']]."'>$lbl</span>";
-                                    ?>
-                                </td>
-                                <td class="text-end">
-                                    <?php if ($es_compras && $p['estado'] == 'aprobada_director'): ?>
-                                        <a href="suministros_gestion_compras.php?id=<?php echo $p['id']; ?>" class="btn btn-sm btn-success fw-bold">Procesar Compra</a>
-                                    <?php elseif ($es_director && $p['estado'] == 'cerrada_logistica'): ?>
-                                        <a href="suministros_planificacion_detalle.php?id=<?php echo $p['id']; ?>" class="btn btn-sm btn-warning text-dark">Revisar</a>
-                                    <?php elseif ($es_logistica): ?>
-                                        <a href="suministros_planificacion_detalle.php?id=<?php echo $p['id']; ?>" class="btn btn-sm btn-primary">Gestionar</a>
-                                    <?php endif; ?>
-                                </td>
-                            </tr>
-                            <?php endforeach; ?>
-                        <?php else: ?>
-                            <tr><td colspan="4" class="text-center py-4 text-muted">No se encontraron campañas con ese criterio.</td></tr>
-                        <?php endif; ?>
-                    </tbody>
-                </table>
-            </div>
+            <table class="table table-striped mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Campaña</th>
+                        <th>Cobertura</th>
+                        <th>Cierre de Carga (Deadline)</th>
+                        <th>Estado</th>
+                        <th class="text-end">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if(count($planificaciones) > 0): ?>
+                        <?php foreach($planificaciones as $p): ?>
+                        <tr>
+                            <td class="fw-bold"><?php echo htmlspecialchars($p['titulo']); ?></td>
+                            <td><span class="badge bg-success bg-opacity-25 text-success border border-success"><?php echo htmlspecialchars($p['frecuencia_cobertura'] ?? 'N/A'); ?></span></td>
+                            <td>
+                                <strong class="text-danger">
+                                    <i class="far fa-clock me-1"></i>
+                                    <?php echo date('d/m/Y H:i', strtotime($p['fecha_fin'])); ?> hs
+                                </strong>
+                            </td>
+                            <td><span class="badge bg-secondary"><?php echo strtoupper($p['estado']); ?></span></td>
+                            <td class="text-end">
+                                <?php if ($es_compras && $p['estado'] == 'aprobada_director'): ?>
+                                    <a href="suministros_gestion_compras.php?id=<?php echo $p['id']; ?>" class="btn btn-sm btn-success fw-bold">Procesar</a>
+                                <?php elseif ($es_director && $p['estado'] == 'cerrada_logistica'): ?>
+                                    <a href="suministros_planificacion_detalle.php?id=<?php echo $p['id']; ?>" class="btn btn-sm btn-warning text-dark">Revisar</a>
+                                <?php elseif ($es_logistica || $es_admin): ?>
+                                    <a href="suministros_planificacion_detalle.php?id=<?php echo $p['id']; ?>" class="btn btn-sm btn-primary">Gestionar</a>
+                                <?php endif; ?>
+                                
+                                <?php if($es_admin): ?>
+                                    <form method="POST" class="d-inline" onsubmit="return confirm('¿Eliminar?');">
+                                        <input type="hidden" name="eliminar_id" value="<?php echo $p['id']; ?>">
+                                        <button class="btn btn-sm btn-danger ms-1"><i class="fas fa-trash"></i></button>
+                                    </form>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <tr><td colspan="5" class="text-center py-4 text-muted">No hay campañas registradas.</td></tr>
+                    <?php endif; ?>
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
 
-<?php if ($es_logistica): ?>
+<?php if ($es_logistica || $es_admin): ?>
 <div class="modal fade" id="modalNueva" tabindex="-1">
     <div class="modal-dialog">
         <form method="POST" class="modal-content">
-            <div class="modal-header bg-primary text-white"><h5 class="modal-title">Nueva Convocatoria</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-header bg-success text-white"><h5>Lanzar Campaña Suministros</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
             <div class="modal-body">
                 <input type="hidden" name="crear_campana" value="1">
-                <div class="mb-3"><label>Título</label><input type="text" name="titulo" class="form-control" required></div>
-                <div class="row">
-                    <div class="col"><label>Inicio</label><input type="date" name="fecha_inicio" class="form-control" required value="<?php echo date('Y-m-d'); ?>"></div>
-                    <div class="col"><label>Cierre</label><input type="date" name="fecha_fin" class="form-control" required></div>
+                
+                <div class="mb-3">
+                    <label class="fw-bold">Título</label>
+                    <input type="text" name="titulo" class="form-control" required placeholder="Ej: Librería Trimestre 1">
+                </div>
+
+                <div class="mb-3">
+                    <label class="fw-bold">1. Tipo de Cobertura</label>
+                    <select name="frecuencia_cobertura" class="form-select fw-bold text-success">
+                        <option value="Semanal">Semanal</option>
+                        <option value="Mensual">Mensual</option>
+                        <option value="Trimestral">Trimestral</option>
+                        <option value="Semestral">Semestral</option>
+                        <option value="Anual">Anual</option>
+                    </select>
+                </div>
+
+                <hr>
+
+                <div class="mb-3">
+                    <label class="fw-bold text-dark">Fecha de Inicio</label>
+                    <input type="date" name="fecha_inicio" class="form-control" required value="<?php echo date('Y-m-d'); ?>">
+                </div>
+
+                <div class="mb-3 p-3 bg-danger bg-opacity-10 border border-danger rounded">
+                    <label class="fw-bold text-danger">2. Fecha y Hora de Vencimiento (Cierre)</label>
+                    <input type="datetime-local" name="fecha_cierre" class="form-control border-danger fw-bold" required>
+                    <div class="form-text text-danger small">A partir de esta hora exacta, nadie podrá cargar más pedidos.</div>
                 </div>
             </div>
-            <div class="modal-footer"><button type="submit" class="btn btn-primary">Lanzar</button></div>
+            <div class="modal-footer"><button type="submit" class="btn btn-success fw-bold">Publicar Campaña</button></div>
         </form>
     </div>
 </div>

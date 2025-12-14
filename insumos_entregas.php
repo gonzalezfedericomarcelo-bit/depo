@@ -1,22 +1,24 @@
 <?php
 // Archivo: insumos_entregas.php
-// Propósito: Historial de Entregas Insumos (Con Permisos Dinámicos)
-
 require 'db.php';
 include 'includes/header.php';
 include 'includes/sidebar.php';
 include 'includes/navbar.php';
 
-// 1. CONTROL DE ACCESO (Lectura)
-// ¿Tiene permiso para ver el historial? (Ya sea 'ver' o 'entregar')
-if (!tienePermiso('ver_entregas_insumos') && !tienePermiso('realizar_entrega_insumos')) {
-    echo "<div class='container mt-4'><div class='alert alert-danger'>⛔ Acceso Denegado: No tienes permiso para ver el historial de entregas.</div></div>";
+$es_admin = in_array('Administrador', $_SESSION['user_roles'] ?? []);
+
+if (!tienePermiso('ver_entregas_insumos') && !tienePermiso('realizar_entrega_insumos') && !$es_admin) {
+    echo "<div class='container mt-4'><div class='alert alert-danger'>⛔ Acceso Denegado.</div></div>";
     include 'includes/footer.php'; exit;
 }
 
-// 2. CONTROL DE ACCIÓN (Escritura)
-// ¿Puede crear nuevas entregas manuales?
-$puede_entregar = tienePermiso('realizar_entrega_insumos');
+// BORRAR ENTREGA
+if (isset($_POST['eliminar_id']) && $es_admin) {
+    try {
+        $pdo->prepare("DELETE FROM entregas WHERE id = ?")->execute([$_POST['eliminar_id']]);
+        echo "<script>window.location='insumos_entregas.php?msg=eliminado';</script>";
+    } catch (Exception $e) { echo "<div class='alert alert-danger'>Error: ".$e->getMessage()."</div>"; }
+}
 
 $sql = "SELECT e.*, u.nombre_completo as responsable 
         FROM entregas e 
@@ -29,44 +31,17 @@ $entregas = $pdo->query($sql)->fetchAll();
 <div class="container-fluid px-4">
     <h1 class="mt-4">Entregas de Insumos Médicos</h1>
 
-    <?php if (isset($_GET['msg']) && $_GET['msg'] == 'exito' && isset($_GET['new_id'])): ?>
-    <div class="alert alert-success alert-dismissible fade show shadow mb-4" role="alert">
-        <h4 class="alert-heading"><i class="fas fa-check-circle"></i> ¡Entrega Exitosa!</h4>
-        <p>La entrega se registró correctamente en el sistema y se descontó el stock.</p>
-        <hr>
-        <div class="d-flex justify-content-between align-items-center">
-            <span>Puedes descargar el comprobante firmado aquí:</span>
-            <a href="generar_pdf_entrega.php?id=<?php echo $_GET['new_id']; ?>" target="_blank" class="btn btn-dark fw-bold">
-                <i class="fas fa-file-pdf me-2"></i> DESCARGAR COMPROBANTE PDF
-            </a>
-        </div>
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    </div>
-    <?php endif; ?>
-
     <div class="card mb-4">
         <div class="card-header d-flex justify-content-between align-items-center">
             <div><i class="fas fa-truck-loading me-1"></i> Historial de Salidas</div>
-            
-            <?php if ($puede_entregar): ?>
-                <a href="insumos_entrega_nueva.php" class="btn btn-primary btn-sm">
-                    <i class="fas fa-plus"></i> Nueva Entrega / Retiro
-                </a>
+            <?php if (tienePermiso('realizar_entrega_insumos') || $es_admin): ?>
+                <a href="insumos_entrega_nueva.php" class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> Nueva Entrega / Retiro</a>
             <?php endif; ?>
         </div>
         <div class="card-body">
             <div class="table-responsive">
                 <table class="table table-bordered table-hover align-middle">
-                    <thead class="table-light">
-                        <tr>
-                            <th>ID</th>
-                            <th>Fecha</th>
-                            <th>Solicitante</th>
-                            <th>Área</th>
-                            <th>Entregado Por</th>
-                            <th class="text-center">Acciones</th>
-                        </tr>
-                    </thead>
+                    <thead class="table-light"><tr><th>ID</th><th>Fecha</th><th>Solicitante</th><th>Área</th><th>Entregado Por</th><th class="text-center">Acciones</th></tr></thead>
                     <tbody>
                         <?php if (count($entregas) > 0): ?>
                             <?php foreach ($entregas as $ent): ?>
@@ -77,9 +52,13 @@ $entregas = $pdo->query($sql)->fetchAll();
                                 <td><span class="badge bg-secondary"><?php echo htmlspecialchars($ent['solicitante_area']); ?></span></td>
                                 <td><?php echo htmlspecialchars($ent['responsable']); ?></td>
                                 <td class="text-center">
-                                    <a href="generar_pdf_entrega.php?id=<?php echo $ent['id']; ?>" target="_blank" class="btn btn-sm btn-danger">
-                                        <i class="fas fa-file-pdf me-1"></i> PDF
-                                    </a>
+                                    <a href="generar_pdf_entrega.php?id=<?php echo $ent['id']; ?>" target="_blank" class="btn btn-sm btn-danger"><i class="fas fa-file-pdf"></i></a>
+                                    <?php if($es_admin): ?>
+                                        <form method="POST" class="d-inline" onsubmit="return confirm('ADMIN: ¿Eliminar esta entrega?');">
+                                            <input type="hidden" name="eliminar_id" value="<?php echo $ent['id']; ?>">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger ms-1"><i class="fas fa-trash"></i></button>
+                                        </form>
+                                    <?php endif; ?>
                                 </td>
                             </tr>
                             <?php endforeach; ?>

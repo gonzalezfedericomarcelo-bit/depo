@@ -1,6 +1,6 @@
 <?php
 // Archivo: includes/sidebar.php
-// Propósito: Menú lateral con lógica de permisos corregida para Insumos
+// Propósito: Menú lateral con enlaces de campaña corregidos
 $current_page = basename($_SERVER['PHP_SELF']);
 
 if (!function_exists('tienePermiso')) {
@@ -17,7 +17,6 @@ if (!function_exists('tienePermiso')) {
         return $tiene;
     }
 }
-$my_roles = $_SESSION['user_roles'] ?? [];
 ?>
 
 <nav id="sidebar" class="sidebar d-none d-md-block bg-dark text-white">
@@ -35,11 +34,28 @@ $my_roles = $_SESSION['user_roles'] ?? [];
 
         <?php if (tienePermiso('solicitar_insumos') || tienePermiso('solicitar_suministros')): ?>
             <li><div class="section-title text-warning">Mi Servicio</div></li>
+            
+            <li>
+                <a href="#menuCampanas" data-bs-toggle="collapse" aria-expanded="false" class="dropdown-toggle text-warning fw-bold">
+                    <i class="fas fa-bullhorn me-2"></i> Campañas Activas
+                </a>
+                <ul class="collapse list-unstyled ps-3" id="menuCampanas">
+                    <?php if (tienePermiso('solicitar_insumos')): ?>
+                        <li><a href="campana_carga_insumos.php"><i class="fas fa-pills me-2"></i> Insumos Médicos</a></li>
+                    <?php endif; ?>
+                    <?php if (tienePermiso('solicitar_suministros')): ?>
+                        <li><a href="campana_carga_suministros.php"><i class="fas fa-box me-2"></i> Suministros Grales</a></li>
+                    <?php endif; ?>
+                </ul>
+            </li>
+            
+            <li><hr class="dropdown-divider border-secondary my-2"></li>
+
             <?php if (tienePermiso('solicitar_insumos')): ?>
-                <li><a href="pedidos_solicitud_interna.php" class="<?php echo ($current_page == 'pedidos_solicitud_interna.php') ? 'active' : ''; ?>"><i class="fas fa-hand-holding-medical me-2"></i> Pedir Insumos</a></li>
+                <li><a href="pedidos_solicitud_interna.php" class="<?php echo ($current_page == 'pedidos_solicitud_interna.php') ? 'active' : ''; ?>"><i class="fas fa-hand-holding-medical me-2"></i> Pedir Insumos (Stock)</a></li>
             <?php endif; ?>
             <?php if (tienePermiso('solicitar_suministros')): ?>
-                <li><a href="pedidos_solicitud_interna_suministros.php" class="<?php echo ($current_page == 'pedidos_solicitud_interna_suministros.php') ? 'active' : ''; ?>"><i class="fas fa-dolly me-2"></i> Pedir Suministros</a></li>
+                <li><a href="pedidos_solicitud_interna_suministros.php" class="<?php echo ($current_page == 'pedidos_solicitud_interna_suministros.php') ? 'active' : ''; ?>"><i class="fas fa-dolly me-2"></i> Pedir Suministros (Stock)</a></li>
             <?php endif; ?>
         <?php endif; ?>
 
