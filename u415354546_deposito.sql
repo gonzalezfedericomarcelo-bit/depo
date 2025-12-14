@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1:3306
--- Tiempo de generación: 12-12-2025 a las 19:25:48
+-- Tiempo de generación: 14-12-2025 a las 11:28:45
 -- Versión del servidor: 11.8.3-MariaDB-log
 -- Versión de PHP: 7.2.34
 
@@ -42,7 +42,8 @@ CREATE TABLE `adjuntos` (
 
 INSERT INTO `adjuntos` (`id`, `entidad_tipo`, `id_entidad`, `ruta_archivo`, `nombre_original`, `fecha_subida`) VALUES
 (1, 'orden_compra', 6, 'uploads/ordenes_compra/693c3b9be6aa4_dashboard.php', 'dashboard.php', '2025-12-12 15:58:19'),
-(2, 'orden_compra', 7, 'uploads/ordenes_compra/693c3d31ce6e8_pedidos_solicitud_interna_suministros.php', 'pedidos_solicitud_interna_suministros.php', '2025-12-12 16:05:05');
+(2, 'orden_compra', 7, 'uploads/ordenes_compra/693c3d31ce6e8_pedidos_solicitud_interna_suministros.php', 'pedidos_solicitud_interna_suministros.php', '2025-12-12 16:05:05'),
+(3, 'orden_compra', 9, 'uploads/693c93aa30380_1.pdf', '1.pdf', '2025-12-12 22:14:02');
 
 -- --------------------------------------------------------
 
@@ -83,9 +84,11 @@ INSERT INTO `areas_servicios` (`id`, `nombre`, `id_padre`) VALUES
 CREATE TABLE `compras_planificaciones` (
   `id` int(11) NOT NULL,
   `titulo` varchar(150) NOT NULL,
-  `fecha_inicio` date NOT NULL,
-  `fecha_fin` date NOT NULL,
+  `frecuencia_cobertura` varchar(50) DEFAULT 'Trimestral',
+  `fecha_inicio` datetime NOT NULL,
+  `fecha_fin` datetime NOT NULL,
   `estado` enum('abierta','cerrada_logistica','aprobada_director','en_compras','orden_generada','finalizada') DEFAULT 'abierta',
+  `motivo_rechazo` text DEFAULT NULL,
   `creado_por` int(11) NOT NULL,
   `fecha_creacion` timestamp NULL DEFAULT current_timestamp(),
   `tipo_insumo` enum('insumos','suministros') NOT NULL DEFAULT 'suministros'
@@ -95,10 +98,8 @@ CREATE TABLE `compras_planificaciones` (
 -- Volcado de datos para la tabla `compras_planificaciones`
 --
 
-INSERT INTO `compras_planificaciones` (`id`, `titulo`, `fecha_inicio`, `fecha_fin`, `estado`, `creado_por`, `fecha_creacion`, `tipo_insumo`) VALUES
-(1, 'AÑO 2025 DICIEMRBE', '2025-12-12', '2026-01-12', 'aprobada_director', 2, '2025-12-12 13:24:36', 'suministros'),
-(2, '20225', '2025-12-12', '2026-02-04', 'orden_generada', 1, '2025-12-12 13:50:17', 'insumos'),
-(3, 'FEDE2025', '2025-12-12', '2026-01-12', 'orden_generada', 7, '2025-12-12 15:28:28', 'insumos');
+INSERT INTO `compras_planificaciones` (`id`, `titulo`, `frecuencia_cobertura`, `fecha_inicio`, `fecha_fin`, `estado`, `motivo_rechazo`, `creado_por`, `fecha_creacion`, `tipo_insumo`) VALUES
+(7, 'LIBERIA 3MESES', 'Trimestral', '2025-12-12 00:00:00', '2025-12-12 18:50:00', 'orden_generada', NULL, 2, '2025-12-12 21:43:58', 'suministros');
 
 -- --------------------------------------------------------
 
@@ -291,7 +292,7 @@ INSERT INTO `notificaciones` (`id`, `id_usuario_destino`, `id_rol_destino`, `men
 (4, NULL, 4, 'Director Médico aprobó pedido #1. Proceder con el movimiento.', 'pedidos_ver.php?id=1', 1, '2025-12-12 12:08:27'),
 (5, 1, NULL, '📦 TUS INSUMOS ESTÁN LISTOS. Por favor pasa por Depósito a retirar y confirmar.', 'pedidos_ver.php?id=1', 1, '2025-12-12 12:09:46'),
 (6, 1, NULL, 'Proceso finalizado.', 'pedidos_ver.php?id=1', 1, '2025-12-12 12:10:17'),
-(7, NULL, 3, 'Nueva solicitud Suministros: Laboratorio', 'pedidos_ver.php?id=2', 0, '2025-12-12 13:14:47'),
+(7, NULL, 3, 'Nueva solicitud Suministros: Laboratorio', 'pedidos_ver.php?id=2', 1, '2025-12-12 13:14:47'),
 (8, NULL, 5, 'Nueva solicitud aprobada por Logística (ID #2). Requiere recepción.', 'pedidos_ver.php?id=2', 1, '2025-12-12 13:16:15'),
 (9, 8, NULL, '✅ Tu solicitud fue aprobada, pero está en espera de que el depósito prepare los suministros.', 'pedidos_ver.php?id=2', 1, '2025-12-12 13:16:54'),
 (10, 8, NULL, '📦 ¡Tu pedido está listo! Ya puedes pasar a retirar tus suministros.', 'pedidos_ver.php?id=2', 1, '2025-12-12 13:17:50'),
@@ -299,29 +300,35 @@ INSERT INTO `notificaciones` (`id`, `id_usuario_destino`, `id_rol_destino`, `men
 (12, NULL, 1, '📢 Nueva Campaña: AÑO 2025 DICIEMRBE', 'pedidos_solicitud_interna_suministros.php', 1, '2025-12-12 13:24:36'),
 (13, NULL, 4, 'Nueva Solicitud Insumos: Laboratorio', 'pedidos_ver.php?id=3', 1, '2025-12-12 13:45:28'),
 (14, NULL, 7, 'Solicitud Insumos revisada por Encargado (ID #3). Requiere su aprobación.', 'pedidos_ver.php?id=3', 1, '2025-12-12 13:46:52'),
-(15, 8, NULL, '✅ Tu pedido fue aprobado por el Director Médico. Está en espera de preparación.', 'pedidos_ver.php?id=3', 0, '2025-12-12 13:47:07'),
+(15, 8, NULL, '✅ Tu pedido fue aprobado por el Director Médico. Está en espera de preparación.', 'pedidos_ver.php?id=3', 1, '2025-12-12 13:47:07'),
 (16, NULL, 4, 'Director Médico aprobó pedido #3. Proceder con el movimiento.', 'pedidos_ver.php?id=3', 1, '2025-12-12 13:47:07'),
 (17, 8, NULL, '📦 TUS INSUMOS ESTÁN LISTOS. Por favor pasa por Depósito a retirar y confirmar.', 'pedidos_ver.php?id=3', 1, '2025-12-12 13:47:25'),
-(18, 8, NULL, 'Proceso finalizado.', 'pedidos_ver.php?id=3', 0, '2025-12-12 13:47:43'),
+(18, 8, NULL, 'Proceso finalizado.', 'pedidos_ver.php?id=3', 1, '2025-12-12 13:47:43'),
 (19, NULL, 1, '📢 Nueva Campaña Médica: 20225', 'pedidos_solicitud_interna.php', 1, '2025-12-12 13:50:17'),
 (20, NULL, 4, 'Nueva Solicitud Insumos: Root (Campaña)', 'pedidos_ver.php?id=4', 0, '2025-12-12 15:07:15'),
-(21, NULL, 7, 'Planificación requiere aprobación: 20225', 'suministros_planificacion_detalle.php?id=2', 0, '2025-12-12 15:07:49'),
+(21, NULL, 7, 'Planificación requiere aprobación: 20225', 'suministros_planificacion_detalle.php?id=2', 1, '2025-12-12 15:07:49'),
 (22, NULL, 2, 'Planificación aprobada para comprar: 20225', 'suministros_planificacion_panel.php', 1, '2025-12-12 15:07:52'),
-(23, NULL, 7, 'Planificación requiere aprobación: AÑO 2025 DICIEMRBE', 'suministros_planificacion_detalle.php?id=1', 0, '2025-12-12 15:12:43'),
+(23, NULL, 7, 'Planificación requiere aprobación: AÑO 2025 DICIEMRBE', 'suministros_planificacion_detalle.php?id=1', 1, '2025-12-12 15:12:43'),
 (24, NULL, 2, 'Planificación aprobada para comprar: AÑO 2025 DICIEMRBE', 'suministros_planificacion_panel.php', 1, '2025-12-12 15:12:46'),
 (25, NULL, 4, 'Nueva Solicitud Insumos: Laboratorio', 'pedidos_ver.php?id=5', 1, '2025-12-12 15:21:26'),
 (26, NULL, 7, 'Solicitud Insumos revisada por Encargado (ID #5). Requiere su aprobación.', 'pedidos_ver.php?id=5', 1, '2025-12-12 15:22:04'),
 (27, 8, NULL, '✅ Tu pedido fue aprobado por el Director Médico. Está en espera de preparación.', 'pedidos_ver.php?id=5', 1, '2025-12-12 15:23:46'),
 (28, NULL, 4, 'Director Médico aprobó pedido #5. Proceder con el movimiento.', 'pedidos_ver.php?id=5', 1, '2025-12-12 15:23:46'),
 (29, 8, NULL, '📦 TUS INSUMOS ESTÁN LISTOS. Por favor pasa por Depósito a retirar y confirmar.', 'pedidos_ver.php?id=5', 1, '2025-12-12 15:25:06'),
-(30, 8, NULL, 'Proceso finalizado.', 'pedidos_ver.php?id=5', 0, '2025-12-12 15:25:28'),
+(30, 8, NULL, 'Proceso finalizado.', 'pedidos_ver.php?id=5', 1, '2025-12-12 15:25:28'),
 (31, NULL, 1, '📢 Nueva Campaña Médica: FEDE2025', 'pedidos_solicitud_interna.php', 1, '2025-12-12 15:28:28'),
 (32, NULL, 4, 'Nueva Solicitud Insumos: Laboratorio (Campaña)', 'pedidos_ver.php?id=6', 1, '2025-12-12 15:29:48'),
 (33, NULL, 4, 'Nueva Solicitud Insumos: Odontologia (Campaña)', 'pedidos_ver.php?id=7', 1, '2025-12-12 15:39:25'),
-(34, NULL, 7, 'Campaña Médica requiere aprobación: FEDE2025', 'insumos_planificacion_detalle.php?id=3', 0, '2025-12-12 15:40:13'),
+(34, NULL, 7, 'Campaña Médica requiere aprobación: FEDE2025', 'insumos_planificacion_detalle.php?id=3', 1, '2025-12-12 15:40:13'),
 (35, NULL, 2, 'Campaña Médica aprobada: FEDE2025', 'insumos_gestion_compras.php?id=3', 1, '2025-12-12 15:41:01'),
 (36, NULL, 4, 'OC Generada (Campaña: FEDE2025)', 'insumos_recepcion.php?id=6', 1, '2025-12-12 15:58:19'),
-(37, NULL, 4, 'OC Médica Generada (Campaña: 20225)', 'insumos_recepcion.php?id=7', 0, '2025-12-12 16:05:05');
+(37, NULL, 4, 'OC Médica Generada (Campaña: 20225)', 'insumos_recepcion.php?id=7', 0, '2025-12-12 16:05:05'),
+(38, NULL, 1, '📢 Nueva Campaña Médica: gonzalez', 'pedidos_solicitud_interna.php', 0, '2025-12-12 20:06:39'),
+(39, NULL, 3, 'Nueva solicitud Suministros: Root (Campaña)', 'pedidos_ver.php?id=8', 1, '2025-12-12 20:36:20'),
+(40, NULL, 1, '📢 Nueva Campaña Suministros: LIBERIA 3MESES', 'pedidos_solicitud_interna_suministros.php', 0, '2025-12-12 21:08:19'),
+(41, NULL, 1, '📢 Nueva Campaña Suministros: CAMPAÑA 3 MESES', 'pedidos_solicitud_interna_suministros.php', 1, '2025-12-12 21:23:09'),
+(42, NULL, 1, '📢 Campaña SUMINISTROS (Trimestral): LIBERIA 3MESES', 'campana_carga_suministros.php', 1, '2025-12-12 21:43:58'),
+(43, NULL, 5, 'Nueva OC Mayorista Lista para Recibir: LIBERIA 3MESES', 'suministros_recepcion.php?id=9', 1, '2025-12-12 22:14:02');
 
 -- --------------------------------------------------------
 
@@ -348,8 +355,7 @@ CREATE TABLE `ordenes_compra` (
 --
 
 INSERT INTO `ordenes_compra` (`id`, `numero_oc`, `servicio_destino`, `tipo_origen`, `id_usuario_creador`, `estado`, `fecha_creacion`, `fecha_aprobacion`, `id_usuario_aprobador`, `observaciones`, `id_planificacion_origen`) VALUES
-(6, '154343', 'Depósito Central', 'insumos', 3, '', '2025-12-12 15:58:19', NULL, NULL, 'Compra masiva campaña #3', 3),
-(7, '3243354354', 'Depósito Central', 'insumos', 3, '', '2025-12-12 16:05:05', NULL, NULL, 'Compra masiva campaña #2', 2);
+(9, 'OC-PLAN-DIC25', 'Stock Central', 'suministros', 3, '', '2025-12-12 22:14:02', NULL, NULL, 'OC generada desde planificación #7', 7);
 
 -- --------------------------------------------------------
 
@@ -375,12 +381,9 @@ CREATE TABLE `ordenes_compra_items` (
 --
 
 INSERT INTO `ordenes_compra_items` (`id`, `id_oc`, `descripcion_producto`, `cantidad_solicitada`, `cantidad_recibida`, `precio_unitario`, `id_insumo_asociado`, `id_suministro_asociado`, `cantidad_aprobada_compra`, `precio_real_unitario`) VALUES
-(12, 6, 'ALCOHOL GEL  [Laboratorio]', 500, 0, 500.00, NULL, NULL, 500, 0.00),
-(13, 6, 'Agua Oxigenada 10vol [Laboratorio]', 800, 0, 1000.00, 5, NULL, 800, 0.00),
-(14, 6, 'Ibuprofeno 600mg [Laboratorio]', 500, 0, 2000.00, 2, NULL, 400, 0.00),
-(15, 6, 'Paracetamol 500mg [Odontologia]', 1000, 0, 1000.00, 1, NULL, 1000, 0.00),
-(16, 7, 'Ibuprofeno 600mg [Root]', 1, 0, 500.00, 2, NULL, 1, 0.00),
-(17, 7, 'Ibuprofeno 600mg [Root]', 1, 0, 150.00, 2, NULL, 2, 0.00);
+(21, 9, 'Pilas AAA', 100, 0, 1500.00, NULL, NULL, 100, 0.00),
+(22, 9, 'Bolígrafos Azules', 68, 0, 2522.00, NULL, 3, 68, 0.00),
+(23, 9, 'Resma A4 75g', 150, 0, 2546.00, NULL, 1, 150, 0.00);
 
 -- --------------------------------------------------------
 
@@ -414,7 +417,18 @@ INSERT INTO `pedidos_items` (`id`, `id_pedido`, `id_insumo`, `id_suministro`, `c
 (7, 6, 2, NULL, 500, NULL, 0, 0, NULL),
 (8, 6, 5, NULL, 800, NULL, 0, 0, NULL),
 (9, 6, NULL, NULL, 500, NULL, 0, 0, 'ALCOHOL GEL '),
-(10, 7, 1, NULL, 1000, NULL, 0, 0, NULL);
+(10, 7, 1, NULL, 1000, NULL, 0, 0, NULL),
+(11, 8, NULL, 3, 1, NULL, 0, 0, NULL),
+(12, 9, NULL, 1, 50, NULL, 0, 0, NULL),
+(13, 9, NULL, 3, 10, NULL, 0, 0, NULL),
+(14, 9, NULL, NULL, 5, NULL, 0, 0, 'Corrector'),
+(15, 10, NULL, 3, 50, NULL, 0, 0, NULL),
+(16, 10, NULL, 2, 2, NULL, 0, 0, NULL),
+(17, 10, NULL, 1, 100, NULL, 0, 0, NULL),
+(18, 11, NULL, 3, 10, NULL, 0, 0, NULL),
+(19, 12, NULL, 1, 150, NULL, 0, 0, NULL),
+(20, 12, NULL, 3, 58, NULL, 0, 0, NULL),
+(21, 12, NULL, NULL, 100, NULL, 0, 0, 'Pilas AAA');
 
 -- --------------------------------------------------------
 
@@ -451,13 +465,8 @@ CREATE TABLE `pedidos_servicio` (
 --
 
 INSERT INTO `pedidos_servicio` (`id`, `tipo_insumo`, `id_usuario_solicitante`, `servicio_solicitante`, `prioridad`, `frecuencia_compra`, `fecha_solicitud`, `estado`, `fecha_aprobacion_director`, `fecha_aprobacion_logistica`, `id_director_aprobador`, `id_logistica_aprobador`, `fecha_entrega_real`, `id_usuario_entrega`, `observaciones_director`, `observaciones_logistica`, `observaciones_entrega`, `paso_actual_id`, `proceso_origen`, `id_entrega_generada`, `id_planificacion`) VALUES
-(1, 'insumos_medicos', 1, 'Sin Servicio', NULL, NULL, '2025-12-12 11:39:10', 'finalizado_proceso', '2025-12-12 09:08:27', NULL, 6, NULL, '2025-12-12 09:10:17', 7, '', NULL, NULL, NULL, 'movimiento_insumos', 1, NULL),
-(2, 'suministros', 8, 'Laboratorio', NULL, NULL, '2025-12-12 13:14:47', 'finalizado_proceso', NULL, '2025-12-12 10:16:15', NULL, 2, '2025-12-12 10:18:56', 4, NULL, '', NULL, NULL, 'movimiento_suministros', 2, NULL),
-(3, 'insumos_medicos', 8, 'Laboratorio', NULL, NULL, '2025-12-12 13:45:28', 'finalizado_proceso', '2025-12-12 10:47:07', NULL, 6, NULL, '2025-12-12 10:47:43', 7, '', NULL, NULL, NULL, 'movimiento_insumos', 3, NULL),
-(4, 'insumos_medicos', 1, 'Root', NULL, NULL, '2025-12-12 15:07:15', '', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 46, 'movimiento_insumos', NULL, 2),
-(5, 'insumos_medicos', 8, 'Laboratorio', NULL, NULL, '2025-12-12 15:21:26', 'finalizado_proceso', '2025-12-12 12:23:46', NULL, 6, NULL, '2025-12-12 12:25:28', 7, 'SIN NOVEDAD', NULL, NULL, NULL, 'movimiento_insumos', 4, NULL),
-(6, 'insumos_medicos', 8, 'Laboratorio', NULL, NULL, '2025-12-12 15:29:48', '', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 46, 'movimiento_insumos', NULL, 3),
-(7, 'insumos_medicos', 10, 'Odontologia', NULL, NULL, '2025-12-12 15:39:25', '', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 46, 'movimiento_insumos', NULL, 3);
+(11, 'suministros', 10, 'Odontologia', NULL, NULL, '2025-12-12 21:47:28', '', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'movimiento_suministros', NULL, 7),
+(12, 'suministros', 8, 'Laboratorio', NULL, NULL, '2025-12-12 21:48:11', '', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'movimiento_suministros', NULL, 7);
 
 -- --------------------------------------------------------
 
@@ -519,7 +528,63 @@ INSERT INTO `permisos` (`id`, `clave`, `nombre`, `categoria`) VALUES
 (54, 'procesar_compra_precios', 'Procesar Compra y Precios (Compras)', '6. Compras'),
 (55, 'ver_oc_insumos_todas', 'Ver Todas las OC Insumos', '6. Compras'),
 (56, 'ver_oc_suministros_todas', 'Ver Todas las OC Suministros', '6. Compras'),
-(57, 'gestionar_planificaciones_medicas', 'Crear Campañas Insumos (Enc. Insumos)', '6. Compras');
+(57, 'gestionar_planificaciones_medicas', 'Crear Campañas Insumos (Enc. Insumos)', '6. Compras'),
+(58, 'd_fin_gasto_mes', 'KPI: Gasto Total del Mes', '7. Dash - Finanzas'),
+(59, 'd_fin_pendientes', 'KPI: Cantidad OCs Pendientes', '7. Dash - Finanzas'),
+(60, 'd_fin_ahorro', 'KPI: Ahorro Estimado (Comparativo)', '7. Dash - Finanzas'),
+(61, 'd_chart_gasto_serv', 'Gráfico Torta: Gasto por Servicio', '7. Dash - Finanzas'),
+(62, 'd_chart_top_insumos', 'Gráfico Barras: Top 5 Insumos Más Caros', '7. Dash - Finanzas'),
+(63, 'd_chart_top_sumin', 'Gráfico Barras: Top 5 Suministros Más Caros', '7. Dash - Finanzas'),
+(64, 'd_chart_evolucion', 'Gráfico Línea: Evolución del Gasto Anual', '7. Dash - Finanzas'),
+(65, 'd_ins_stock_crit', 'KPI: Alerta Stock Crítico (Insumos)', '7. Dash - Insumos'),
+(66, 'd_ins_vencimientos', 'KPI: Alerta Vencimientos < 30 días', '7. Dash - Insumos'),
+(67, 'd_ins_pedidos_nuevos', 'KPI: Solicitudes Nuevas a Procesar', '7. Dash - Insumos'),
+(68, 'd_chart_ins_demanda', 'Gráfico Barras: Insumos Más Pedidos (Volumen)', '7. Dash - Insumos'),
+(69, 'd_chart_ins_criticos', 'Gráfico Torta: Proporción Stock Sano vs Crítico', '7. Dash - Insumos'),
+(70, 'd_table_ins_vencer', 'Tabla: Próximos a Vencer (Top 5)', '7. Dash - Insumos'),
+(71, 'd_sum_stock_crit', 'KPI: Alerta Stock Crítico (Suministros)', '7. Dash - Suministros'),
+(72, 'd_sum_pedidos_nuevos', 'KPI: Solicitudes Nuevas a Procesar', '7. Dash - Suministros'),
+(73, 'd_sum_movimientos', 'KPI: Movimientos de Stock Hoy', '7. Dash - Suministros'),
+(74, 'd_chart_sum_demanda', 'Gráfico Barras: Suministros Más Pedidos (Volumen)', '7. Dash - Suministros'),
+(75, 'd_chart_sum_categ', 'Gráfico Torta: Distribución por Categoría', '7. Dash - Suministros'),
+(76, 'd_table_sum_lento', 'Tabla: Suministros sin movimiento (30 días)', '7. Dash - Suministros'),
+(77, 'd_dir_aprob_pend', 'KPI: Planificaciones Pendientes de Firma', '7. Dash - Dirección'),
+(78, 'd_dir_eficiencia', 'KPI: Tiempo Promedio de Entrega', '7. Dash - Dirección'),
+(79, 'd_chart_pedidos_estado', 'Gráfico Torta: Estado Global de Pedidos', '7. Dash - Dirección'),
+(80, 'd_chart_consumo_serv', 'Gráfico Barras: Ranking Consumo por Servicio', '7. Dash - Dirección'),
+(81, 'd_serv_mis_pedidos', 'KPI: Mis Pedidos en Curso', '7. Dash - Servicios'),
+(82, 'd_serv_campanas', 'Widget: Campañas Activas (Reloj)', '7. Dash - Servicios'),
+(83, 'd_serv_mi_consumo', 'Gráfico: Mis Productos Más Pedidos', '7. Dash - Servicios'),
+(84, 'd_serv_actividad', 'Tabla: Mi Historial Reciente', '7. Dash - Servicios'),
+(85, 'dash_fin_kpi_gasto', 'KPI: Inversión del Mes', '7. Dashboard - Finanzas'),
+(86, 'dash_fin_kpi_pend', 'KPI: OCs Pendientes', '7. Dashboard - Finanzas'),
+(87, 'dash_fin_kpi_aprob', 'KPI: OCs Aprobadas', '7. Dashboard - Finanzas'),
+(88, 'dash_fin_graph_servicios', 'Gráfico Torta: Gasto por Servicio', '7. Dashboard - Finanzas'),
+(89, 'dash_fin_graph_top_ins', 'Gráfico Barras: Top Costos Insumos', '7. Dashboard - Finanzas'),
+(90, 'dash_fin_graph_top_sum', 'Gráfico Barras: Top Costos Suministros', '7. Dashboard - Finanzas'),
+(91, 'dash_log_kpi_stock', 'KPI: Stock Crítico (Suministros)', '7. Dashboard - Logística'),
+(92, 'dash_log_kpi_pedidos', 'KPI: Pedidos Nuevos (Suministros)', '7. Dashboard - Logística'),
+(93, 'dash_log_graph_demanda', 'Gráfico: Top Demanda Suministros (Volumen)', '7. Dashboard - Logística'),
+(94, 'dash_log_table_ultimos', 'Tabla: Últimos Pedidos Suministros', '7. Dashboard - Logística'),
+(95, 'dash_log_btn_campana', 'Botón: Nueva Campaña Suministros', '7. Dashboard - Logística'),
+(96, 'dash_far_kpi_stock', 'KPI: Stock Crítico (Insumos)', '7. Dashboard - Farmacia'),
+(97, 'dash_far_kpi_pedidos', 'KPI: Pedidos Nuevos (Insumos)', '7. Dashboard - Farmacia'),
+(98, 'dash_far_kpi_venc', 'KPI: Próximos Vencimientos', '7. Dashboard - Farmacia'),
+(99, 'dash_far_graph_demanda', 'Gráfico: Top Demanda Insumos (Volumen)', '7. Dashboard - Farmacia'),
+(100, 'dash_far_btn_campana', 'Botón: Nueva Campaña Insumos', '7. Dashboard - Farmacia'),
+(101, 'dash_dir_kpi_firmas', 'KPI: Campañas a Firmar', '7. Dashboard - Dirección'),
+(102, 'dash_dir_graph_evolucion', 'Gráfico: Evolución de Gasto Global', '7. Dashboard - Dirección'),
+(103, 'dash_serv_kpi_mios', 'KPI: Mis Pedidos en Curso', '7. Dashboard - Servicios'),
+(104, 'dash_serv_alertas', 'Alerta: Campañas Activas (Reloj)', '7. Dashboard - Servicios'),
+(105, 'dash_serv_accesos', 'Botones: Solicitar Insumos/Suministros', '7. Dashboard - Servicios'),
+(106, 'dash_gen_actividad', 'Tabla: Actividad Reciente del Sistema', '7. Dashboard - General'),
+(107, 'dash_serv_kpi_items', 'KPI: Total Ítems Solicitados (Mes)', '7. Dashboard - Servicios'),
+(108, 'dash_serv_kpi_tasa', 'KPI: Tasa de Aprobación (%)', '7. Dashboard - Servicios'),
+(109, 'dash_serv_kpi_gasto_est', 'KPI: Gasto Estimado (En Compras)', '7. Dashboard - Servicios'),
+(110, 'dash_serv_graph_evolucion', 'Gráfico Línea: Mi Historial de Pedidos', '7. Dashboard - Servicios'),
+(111, 'dash_serv_graph_top', 'Gráfico Barras: Lo Que Más Pido (Top 5)', '7. Dashboard - Servicios'),
+(112, 'dash_serv_graph_tipo', 'Gráfico Torta: Insumos vs Suministros', '7. Dashboard - Servicios'),
+(113, 'dash_serv_list_ultimos', 'Tabla: Mis Últimos 5 Pedidos (Detalle)', '7. Dashboard - Servicios');
 
 -- --------------------------------------------------------
 
@@ -639,19 +704,142 @@ INSERT INTO `rol_permisos` (`id_rol`, `id_permiso`) VALUES
 (1, 43),
 (1, 44),
 (1, 45),
+(1, 46),
 (7, 46),
+(1, 47),
 (3, 47),
+(1, 48),
 (4, 48),
+(1, 49),
 (5, 49),
+(1, 50),
 (4, 50),
+(1, 51),
 (5, 51),
+(1, 52),
 (3, 52),
+(1, 53),
 (7, 53),
+(1, 54),
 (2, 54),
+(1, 55),
 (2, 55),
+(1, 56),
 (2, 56),
 (3, 56),
-(4, 57);
+(1, 57),
+(4, 57),
+(1, 58),
+(2, 58),
+(1, 59),
+(2, 59),
+(7, 59),
+(1, 60),
+(2, 60),
+(1, 61),
+(2, 61),
+(1, 62),
+(2, 62),
+(7, 62),
+(1, 63),
+(2, 63),
+(3, 63),
+(1, 64),
+(2, 64),
+(1, 65),
+(7, 65),
+(1, 66),
+(7, 66),
+(1, 67),
+(7, 67),
+(1, 68),
+(7, 68),
+(1, 69),
+(7, 69),
+(1, 70),
+(7, 70),
+(1, 71),
+(3, 71),
+(5, 71),
+(1, 72),
+(3, 72),
+(5, 72),
+(1, 73),
+(3, 73),
+(5, 73),
+(1, 74),
+(3, 74),
+(5, 74),
+(1, 75),
+(3, 75),
+(5, 75),
+(1, 76),
+(3, 76),
+(5, 76),
+(1, 77),
+(7, 77),
+(1, 78),
+(7, 78),
+(1, 79),
+(7, 79),
+(12, 79),
+(1, 80),
+(7, 80),
+(1, 81),
+(12, 81),
+(1, 82),
+(12, 82),
+(1, 83),
+(12, 83),
+(1, 84),
+(12, 84),
+(1, 85),
+(2, 85),
+(1, 86),
+(2, 86),
+(1, 87),
+(2, 87),
+(1, 88),
+(2, 88),
+(1, 89),
+(2, 89),
+(1, 90),
+(2, 90),
+(1, 91),
+(1, 92),
+(1, 93),
+(1, 94),
+(1, 95),
+(1, 96),
+(1, 97),
+(1, 98),
+(1, 99),
+(1, 100),
+(1, 101),
+(1, 102),
+(1, 103),
+(12, 103),
+(1, 104),
+(12, 104),
+(1, 105),
+(12, 105),
+(1, 106),
+(2, 106),
+(12, 106),
+(1, 107),
+(12, 107),
+(1, 108),
+(12, 108),
+(1, 109),
+(12, 109),
+(1, 110),
+(12, 110),
+(1, 111),
+(12, 111),
+(1, 112),
+(12, 112),
+(1, 113),
+(12, 113);
 
 -- --------------------------------------------------------
 
@@ -712,13 +900,13 @@ CREATE TABLE `usuarios` (
 INSERT INTO `usuarios` (`id`, `nombre_completo`, `usuario`, `email`, `destino`, `servicio`, `grado_militar`, `rol_en_servicio`, `telefono`, `numero_interno`, `password`, `firma_digital`, `activo`, `validado_por_admin`, `created_at`) VALUES
 (1, 'Super Admin', 'admin', 'admin@actis.com', NULL, 'Root', NULL, 'Responsable', NULL, NULL, '$2y$10$LNsOLB5Hzq7sZ.iqD1H0IOHfDeqzTYCG.iPr9k4vNchmKC4fVVVTO', 'uploads/firmas/firma_1_1764967110.png', 1, 1, '2025-12-05 12:01:01'),
 (2, 'SM I Marcelo Cañete', 'logistica', 'logistica@actis.com', NULL, 'Encargado de Logística', NULL, 'Responsable', NULL, NULL, '$2y$10$ANIfLPybyGDI5eOu7vqqgugKjvDBjhyADiH0.dtj1Kb7PDgSyhOT2', 'uploads/firmas/firma_2_1765545788.png', 1, 1, '2025-12-05 14:11:36'),
-(3, 'COMPRAS', 'compras', 'compras@actis.com', NULL, 'Compras', NULL, 'Responsable', NULL, NULL, '$2y$10$1w7s2/TX3Ua5SsZiiQguXu47STNEDHtZbz/iIRolfR9pSR6Bz7Wwi', 'uploads/firmas/firma_user_3_1764946491.png', 1, 1, '2025-12-05 14:12:43'),
-(4, 'SUMINISTROS', 'suministros', 'suministros@actis.com', NULL, 'Encargado Depósito Suministros', NULL, 'Responsable', NULL, NULL, '$2y$10$zB0EZqRNnGNTMdzAv75EFuzwa0T8qOGLGgtwLVCTTA/I8AmezCQS.', 'uploads/firmas/firma_4_1765499664.png', 1, 1, '2025-12-05 15:26:00'),
-(6, 'DIRECTOR MEDICO', 'dirmed', 'dirmed@actis.com', NULL, 'Director Médico', NULL, 'Responsable', NULL, NULL, '$2y$10$8lCcLiScXrcYKL2aB7su6e0wA.fWfqi/fMijxYUmO1Rv7EgcSnwBe', 'uploads/firmas/firma_6_1765541171.png', 1, 1, '2025-12-05 16:35:22'),
+(3, 'COMPRAS', 'compras', 'compras@actis.com', NULL, 'Compras', NULL, 'Responsable', NULL, NULL, '$2y$10$1w7s2/TX3Ua5SsZiiQguXu47STNEDHtZbz/iIRolfR9pSR6Bz7Wwi', 'uploads/firmas/firma_3_1765582535.png', 1, 1, '2025-12-05 14:12:43'),
+(4, 'SUMINISTROS', 'suministros', 'suministros@actis.com', NULL, 'Encargado Depósito Suministros', NULL, 'Responsable', NULL, NULL, '$2y$10$zB0EZqRNnGNTMdzAv75EFuzwa0T8qOGLGgtwLVCTTA/I8AmezCQS.', 'uploads/firmas/firma_4_1765594682.png', 1, 1, '2025-12-05 15:26:00'),
+(6, 'DIRECTOR MEDICO', 'dirmed', 'dirmed@actis.com', NULL, 'Director Médico', NULL, 'Responsable', NULL, NULL, '$2y$10$60wcWnrkKAXu6nI/yMrl5uEc.Brk.ssB8bTTkX1TYyUk4uRd9wjO6', 'uploads/firmas/firma_6_1765581691.png', 1, 1, '2025-12-05 16:35:22'),
 (7, 'INSUMOS MEDICOS', 'insumos', 'insumos@actis.com', NULL, 'Encargada Insumos Médicos', NULL, 'Responsable', NULL, NULL, '$2y$10$2w.vlljgTvuUWHFm23Cdc.oj.dPa9Zoi7YTp1jaMGdcI5W2vrtMBm', 'uploads/firmas/firma_7_1765502079.png', 1, 1, '2025-12-05 16:36:41'),
-(8, 'Jefe de Laboratorio', 'laboratorio', 'labo@gmail.com', 'ACTIS', 'Laboratorio', 'SG', 'Responsable', '1166116861', '', '$2y$10$8XxViGn9eT4m.dzKImzvVupWK6rAY4TBke1KU5oPK8ggP1hKuM8Ym', 'uploads/firmas/firma_8_1765500434.png', 1, 1, '2025-12-10 14:55:57'),
+(8, 'Jefe de Laboratorio', 'laboratorio', 'labo@gmail.com', 'ACTIS', 'Laboratorio', 'SG', 'Responsable', '1166116861', '', '$2y$10$8XxViGn9eT4m.dzKImzvVupWK6rAY4TBke1KU5oPK8ggP1hKuM8Ym', 'uploads/firmas/firma_8_1765631176.png', 1, 1, '2025-12-10 14:55:57'),
 (9, 'DIRECTOR OPERATIVO', 'dirop', 'dirop@actis.com', NULL, '', NULL, 'Responsable', NULL, NULL, '$2y$10$ccOL7yA2BBC2K6l8T1IFRe9PZSy9YJ0h7PVZvkn0nLtNRVzhmRpt2', NULL, 1, 1, '2025-12-11 14:10:20'),
-(10, 'Jefe de Odontología', 'odonto', 'odonto@actis.com', NULL, 'Odontologia', NULL, 'Responsable', NULL, NULL, '$2y$10$X961.LwyVHJkCiUmW5Q5pefxbxMt6ygKHhFI953t8FpXIq62EOVcC', NULL, 1, 1, '2025-12-11 15:54:18');
+(10, 'Jefe de Odontología', 'odonto', 'odonto@actis.com', NULL, 'Odontologia', NULL, 'Responsable', NULL, NULL, '$2y$10$X961.LwyVHJkCiUmW5Q5pefxbxMt6ygKHhFI953t8FpXIq62EOVcC', 'uploads/firmas/firma_10_1765631092.png', 1, 1, '2025-12-11 15:54:18');
 
 -- --------------------------------------------------------
 
@@ -899,7 +1087,7 @@ ALTER TABLE `usuario_roles`
 -- AUTO_INCREMENT de la tabla `adjuntos`
 --
 ALTER TABLE `adjuntos`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT de la tabla `areas_servicios`
@@ -911,7 +1099,7 @@ ALTER TABLE `areas_servicios`
 -- AUTO_INCREMENT de la tabla `compras_planificaciones`
 --
 ALTER TABLE `compras_planificaciones`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- AUTO_INCREMENT de la tabla `config_flujos`
@@ -947,37 +1135,37 @@ ALTER TABLE `insumos_medicos`
 -- AUTO_INCREMENT de la tabla `notificaciones`
 --
 ALTER TABLE `notificaciones`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=38;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=44;
 
 --
 -- AUTO_INCREMENT de la tabla `ordenes_compra`
 --
 ALTER TABLE `ordenes_compra`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
 
 --
 -- AUTO_INCREMENT de la tabla `ordenes_compra_items`
 --
 ALTER TABLE `ordenes_compra_items`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=18;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=24;
 
 --
 -- AUTO_INCREMENT de la tabla `pedidos_items`
 --
 ALTER TABLE `pedidos_items`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=22;
 
 --
 -- AUTO_INCREMENT de la tabla `pedidos_servicio`
 --
 ALTER TABLE `pedidos_servicio`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
 
 --
 -- AUTO_INCREMENT de la tabla `permisos`
 --
 ALTER TABLE `permisos`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=58;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=114;
 
 --
 -- AUTO_INCREMENT de la tabla `roles`
