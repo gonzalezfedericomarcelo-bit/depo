@@ -1,22 +1,7 @@
 <?php
 // Archivo: includes/sidebar.php
-// Propósito: Menú lateral con enlaces de campaña corregidos
+// Propósito: Menú lateral dinámico
 $current_page = basename($_SERVER['PHP_SELF']);
-
-if (!function_exists('tienePermiso')) {
-    function tienePermiso($clave) {
-        if (in_array('Administrador', $_SESSION['user_roles'] ?? [])) return true;
-        global $pdo;
-        $user_id = $_SESSION['user_id'] ?? 0;
-        static $permisos_cache = [];
-        if (isset($permisos_cache[$user_id][$clave])) return $permisos_cache[$user_id][$clave];
-        $stmt = $pdo->prepare("SELECT COUNT(*) FROM rol_permisos rp JOIN permisos p ON rp.id_permiso=p.id JOIN usuario_roles ur ON rp.id_rol=ur.id_rol WHERE ur.id_usuario=? AND p.clave=?");
-        $stmt->execute([$user_id, $clave]);
-        $tiene = $stmt->fetchColumn() > 0;
-        $permisos_cache[$user_id][$clave] = $tiene;
-        return $tiene;
-    }
-}
 ?>
 
 <nav id="sidebar" class="sidebar d-none d-md-block bg-dark text-white">

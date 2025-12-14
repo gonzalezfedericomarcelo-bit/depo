@@ -8,7 +8,7 @@
             <div class="d-flex align-items-center ms-auto">
                 
                 <div class="dropdown me-3">
-                    <a href="#" class="text-secondary position-relative" id="notifDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 1.2rem;">
+                    <a href="#" class="text-secondary position-relative" id="notifDropdown" data-bs-toggle="dropdown" aria-expanded="false" data-bs-display="static" style="font-size: 1.2rem;">
                         <i class="fas fa-bell"></i>
                         <span id="notif-badge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.6rem; display: none;">
                             0
@@ -21,7 +21,7 @@
                 </div>
 
                 <div class="dropdown">
-                    <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle" id="userDropdown" data-bs-toggle="dropdown">
+                    <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle" id="userDropdown" data-bs-toggle="dropdown" data-bs-display="static">
                         <div class="d-flex flex-column text-end me-3 d-none d-sm-flex">
                             <span class="fw-bold text-dark" style="font-size: 0.85rem;"><?php echo htmlspecialchars($nombre_usuario_global); ?></span>
                             <small class="text-muted text-uppercase" style="font-size: 0.7rem;"><?php echo htmlspecialchars($rol_principal_global); ?></small>
