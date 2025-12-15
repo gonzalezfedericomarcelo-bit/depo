@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1:3306
--- Tiempo de generación: 15-12-2025 a las 12:01:08
+-- Tiempo de generación: 15-12-2025 a las 16:08:46
 -- Versión del servidor: 11.8.3-MariaDB-log
 -- Versión de PHP: 7.2.34
 
@@ -43,7 +43,8 @@ CREATE TABLE `adjuntos` (
 INSERT INTO `adjuntos` (`id`, `entidad_tipo`, `id_entidad`, `ruta_archivo`, `nombre_original`, `fecha_subida`) VALUES
 (1, 'orden_compra', 6, 'uploads/ordenes_compra/693c3b9be6aa4_dashboard.php', 'dashboard.php', '2025-12-12 15:58:19'),
 (2, 'orden_compra', 7, 'uploads/ordenes_compra/693c3d31ce6e8_pedidos_solicitud_interna_suministros.php', 'pedidos_solicitud_interna_suministros.php', '2025-12-12 16:05:05'),
-(3, 'orden_compra', 9, 'uploads/693c93aa30380_1.pdf', '1.pdf', '2025-12-12 22:14:02');
+(3, 'orden_compra', 9, 'uploads/693c93aa30380_1.pdf', '1.pdf', '2025-12-12 22:14:02'),
+(4, 'orden_compra', 10, 'uploads/694009a824a35_suministros_stock.php', 'suministros_stock.php', '2025-12-15 13:14:16');
 
 -- --------------------------------------------------------
 
@@ -99,7 +100,9 @@ CREATE TABLE `compras_planificaciones` (
 --
 
 INSERT INTO `compras_planificaciones` (`id`, `titulo`, `frecuencia_cobertura`, `fecha_inicio`, `fecha_fin`, `estado`, `motivo_rechazo`, `creado_por`, `fecha_creacion`, `tipo_insumo`) VALUES
-(7, 'LIBERIA 3MESES', 'Trimestral', '2025-12-12 00:00:00', '2025-12-12 18:50:00', 'orden_generada', NULL, 2, '2025-12-12 21:43:58', 'suministros');
+(10, 'CAMPAÑA 3 MESES', 'Trimestral', '2025-12-15 00:00:00', '2025-12-15 09:50:00', 'orden_generada', NULL, 1, '2025-12-15 12:41:55', 'suministros'),
+(11, 'Arreglos en baño', 'Semanal', '2025-12-15 00:00:00', '2025-12-15 10:12:00', 'abierta', NULL, 2, '2025-12-15 13:07:20', 'suministros'),
+(12, 'dsfdsfs', 'Semanal', '2025-12-15 00:00:00', '2025-12-17 10:17:00', 'abierta', NULL, 2, '2025-12-15 13:17:38', 'suministros');
 
 -- --------------------------------------------------------
 
@@ -323,12 +326,18 @@ INSERT INTO `notificaciones` (`id`, `id_usuario_destino`, `id_rol_destino`, `men
 (35, NULL, 2, 'Campaña Médica aprobada: FEDE2025', 'insumos_gestion_compras.php?id=3', 1, '2025-12-12 15:41:01'),
 (36, NULL, 4, 'OC Generada (Campaña: FEDE2025)', 'insumos_recepcion.php?id=6', 1, '2025-12-12 15:58:19'),
 (37, NULL, 4, 'OC Médica Generada (Campaña: 20225)', 'insumos_recepcion.php?id=7', 0, '2025-12-12 16:05:05'),
-(38, NULL, 1, '📢 Nueva Campaña Médica: gonzalez', 'pedidos_solicitud_interna.php', 0, '2025-12-12 20:06:39'),
+(38, NULL, 1, '📢 Nueva Campaña Médica: gonzalez', 'pedidos_solicitud_interna.php', 1, '2025-12-12 20:06:39'),
 (39, NULL, 3, 'Nueva solicitud Suministros: Root (Campaña)', 'pedidos_ver.php?id=8', 1, '2025-12-12 20:36:20'),
 (40, NULL, 1, '📢 Nueva Campaña Suministros: LIBERIA 3MESES', 'pedidos_solicitud_interna_suministros.php', 1, '2025-12-12 21:08:19'),
 (41, NULL, 1, '📢 Nueva Campaña Suministros: CAMPAÑA 3 MESES', 'pedidos_solicitud_interna_suministros.php', 1, '2025-12-12 21:23:09'),
 (42, NULL, 1, '📢 Campaña SUMINISTROS (Trimestral): LIBERIA 3MESES', 'campana_carga_suministros.php', 1, '2025-12-12 21:43:58'),
-(43, NULL, 5, 'Nueva OC Mayorista Lista para Recibir: LIBERIA 3MESES', 'suministros_recepcion.php?id=9', 1, '2025-12-12 22:14:02');
+(43, NULL, 5, 'Nueva OC Mayorista Lista para Recibir: LIBERIA 3MESES', 'suministros_recepcion.php?id=9', 1, '2025-12-12 22:14:02'),
+(44, NULL, 1, '📢 Campaña SUMINISTROS (Trimestral): TRIMESTRAL: 15 DE DICIEMBRE', 'campana_carga_suministros.php', 0, '2025-12-15 12:26:13'),
+(45, NULL, 1, '📢 Campaña SUMINISTROS (Semanal): RTYURT', 'campana_carga_suministros.php', 0, '2025-12-15 12:33:37'),
+(46, NULL, 1, '📢 Campaña SUMINISTROS (Trimestral): CAMPAÑA 3 MESES', 'campana_carga_suministros.php', 1, '2025-12-15 12:41:55'),
+(47, NULL, 3, 'Campaña Suministros RECIBIDA: Laboratorio', 'pedidos_ver.php?id=15', 1, '2025-12-15 12:45:36'),
+(48, NULL, 5, 'Nueva OC Mayorista Lista para Recibir: CAMPAÑA 3 MESES', 'suministros_recepcion.php?id=10', 0, '2025-12-15 13:14:16'),
+(49, NULL, 15, '📢 Nueva Campaña Suministros: dsfdsfs', 'campana_carga_suministros.php', 1, '2025-12-15 13:17:38');
 
 -- --------------------------------------------------------
 
@@ -355,7 +364,8 @@ CREATE TABLE `ordenes_compra` (
 --
 
 INSERT INTO `ordenes_compra` (`id`, `numero_oc`, `servicio_destino`, `tipo_origen`, `id_usuario_creador`, `estado`, `fecha_creacion`, `fecha_aprobacion`, `id_usuario_aprobador`, `observaciones`, `id_planificacion_origen`) VALUES
-(9, 'OC-PLAN-DIC25', 'Stock Central', 'suministros', 3, '', '2025-12-12 22:14:02', NULL, NULL, 'OC generada desde planificación #7', 7);
+(9, 'OC-PLAN-DIC25', 'Stock Central', 'suministros', 3, '', '2025-12-12 22:14:02', NULL, NULL, 'OC generada desde planificación #7', 7),
+(10, '154343', 'Stock Central', 'suministros', 3, '', '2025-12-15 13:14:16', NULL, NULL, 'OC generada desde planificación #10', 10);
 
 -- --------------------------------------------------------
 
@@ -383,7 +393,9 @@ CREATE TABLE `ordenes_compra_items` (
 INSERT INTO `ordenes_compra_items` (`id`, `id_oc`, `descripcion_producto`, `cantidad_solicitada`, `cantidad_recibida`, `precio_unitario`, `id_insumo_asociado`, `id_suministro_asociado`, `cantidad_aprobada_compra`, `precio_real_unitario`) VALUES
 (21, 9, 'Pilas AAA', 100, 0, 1500.00, NULL, NULL, 100, 0.00),
 (22, 9, 'Bolígrafos Azules', 68, 0, 2522.00, NULL, 3, 68, 0.00),
-(23, 9, 'Resma A4 75g', 150, 0, 2546.00, NULL, 1, 150, 0.00);
+(23, 9, 'Resma A4 75g', 150, 0, 2546.00, NULL, 1, 150, 0.00),
+(24, 10, 'Lavandina Concentrada', 1444, 0, 200.00, NULL, 2, 1444, 0.00),
+(25, 10, 'Tóner HP 85A', 12, 0, 250.00, NULL, 5, 12, 0.00);
 
 -- --------------------------------------------------------
 
@@ -428,7 +440,13 @@ INSERT INTO `pedidos_items` (`id`, `id_pedido`, `id_insumo`, `id_suministro`, `c
 (18, 11, NULL, 3, 10, NULL, 0, 0, NULL),
 (19, 12, NULL, 1, 150, NULL, 0, 0, NULL),
 (20, 12, NULL, 3, 58, NULL, 0, 0, NULL),
-(21, 12, NULL, NULL, 100, NULL, 0, 0, 'Pilas AAA');
+(21, 12, NULL, NULL, 100, NULL, 0, 0, 'Pilas AAA'),
+(22, 13, NULL, 2, 50, NULL, 0, 0, NULL),
+(23, 13, NULL, 1, 200, NULL, 0, 0, NULL),
+(24, 14, NULL, 4, 150, NULL, 0, 0, NULL),
+(25, 14, NULL, 1, 47, NULL, 0, 0, NULL),
+(29, 15, NULL, 2, 1444, NULL, 0, 0, NULL),
+(30, 15, NULL, 5, 12, NULL, 0, 0, NULL);
 
 -- --------------------------------------------------------
 
@@ -444,7 +462,7 @@ CREATE TABLE `pedidos_servicio` (
   `prioridad` enum('Normal','Urgente','Extraordinaria') DEFAULT NULL,
   `frecuencia_compra` enum('Mensual','Trimestral','Semestral','Anual') DEFAULT NULL,
   `fecha_solicitud` timestamp NULL DEFAULT current_timestamp(),
-  `estado` enum('pendiente_director','aprobado_director','pendiente_logistica','aprobado_logistica','entregado','rechazado','finalizado_proceso','esperando_entrega') DEFAULT 'pendiente_director',
+  `estado` enum('pendiente_director','aprobado_director','pendiente_logistica','aprobada_logistica','entregado','rechazado','finalizado_proceso','esperando_entrega','en_carga') DEFAULT 'pendiente_director',
   `fecha_aprobacion_director` datetime DEFAULT NULL,
   `fecha_aprobacion_logistica` datetime DEFAULT NULL,
   `id_director_aprobador` int(11) DEFAULT NULL,
@@ -466,7 +484,10 @@ CREATE TABLE `pedidos_servicio` (
 
 INSERT INTO `pedidos_servicio` (`id`, `tipo_insumo`, `id_usuario_solicitante`, `servicio_solicitante`, `prioridad`, `frecuencia_compra`, `fecha_solicitud`, `estado`, `fecha_aprobacion_director`, `fecha_aprobacion_logistica`, `id_director_aprobador`, `id_logistica_aprobador`, `fecha_entrega_real`, `id_usuario_entrega`, `observaciones_director`, `observaciones_logistica`, `observaciones_entrega`, `paso_actual_id`, `proceso_origen`, `id_entrega_generada`, `id_planificacion`) VALUES
 (11, 'suministros', 10, 'Odontologia', NULL, NULL, '2025-12-12 21:47:28', '', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'movimiento_suministros', NULL, 7),
-(12, 'suministros', 8, 'Laboratorio', NULL, NULL, '2025-12-12 21:48:11', '', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'movimiento_suministros', NULL, 7);
+(12, 'suministros', 8, 'Laboratorio', NULL, NULL, '2025-12-12 21:48:11', '', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'movimiento_suministros', NULL, 7),
+(13, 'suministros', 10, 'Odontologia', NULL, NULL, '2025-12-15 12:26:55', '', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'movimiento_suministros', NULL, 8),
+(14, 'suministros', 8, 'Laboratorio', NULL, NULL, '2025-12-15 12:33:59', '', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'movimiento_suministros', NULL, 9),
+(15, 'suministros', 8, 'Laboratorio', NULL, NULL, '2025-12-15 12:45:36', '', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 42, 'movimiento_suministros', NULL, 10);
 
 -- --------------------------------------------------------
 
@@ -567,7 +588,9 @@ INSERT INTO `permisos` (`id`, `clave`, `nombre`, `categoria`) VALUES
 (117, 'crear_oc_insumos', 'Crear OC Insumos (Manual)', 'Compras'),
 (118, 'crear_oc_suministros', 'Crear OC Suministros (Manual)', 'Compras'),
 (119, 'ver_oc_insumos_propias', 'Ver OC Insumos (Solo Propias)', 'Compras'),
-(120, 'ver_oc_suministros_propias', 'Ver OC Suministros (Solo Propias)', 'Compras');
+(120, 'ver_oc_suministros_propias', 'Ver OC Suministros (Solo Propias)', 'Compras'),
+(126, 'recibir_avisos_campana', 'Recibir Aviso de Nuevas Campañas', '1. Sistema'),
+(127, 'ver_gastos_detallados', 'Ver Analíticas Financieras Avanzadas (Gastos, Tortas, Estadísticas)', 'Dashboard: Finanzas');
 
 -- --------------------------------------------------------
 
@@ -594,8 +617,7 @@ INSERT INTO `roles` (`id`, `nombre`, `descripcion`) VALUES
 (6, 'Auxiliar', 'Ayuda en gestión y entregas'),
 (7, 'Director Médico', 'Autoriza Órdenes de Compra de Insumos Médicos'),
 (8, 'Director Operativo', 'Aprueba adquisiciones de Suministros Generales'),
-(12, 'Servicio', 'Usuario solicitante de insumos/suministros'),
-(13, 'FEDE', NULL);
+(15, 'Servicios', '');
 
 -- --------------------------------------------------------
 
@@ -614,256 +636,186 @@ CREATE TABLE `rol_permisos` (
 
 INSERT INTO `rol_permisos` (`id_rol`, `id_permiso`) VALUES
 (1, 1),
-(13, 1),
 (1, 2),
 (2, 2),
 (3, 2),
 (4, 2),
 (5, 2),
 (7, 2),
-(12, 2),
-(13, 2),
+(15, 2),
 (1, 3),
 (2, 3),
 (3, 3),
 (4, 3),
 (5, 3),
 (7, 3),
-(12, 3),
-(13, 3),
+(15, 3),
 (1, 4),
-(12, 4),
-(13, 4),
+(15, 4),
 (1, 5),
-(12, 5),
-(13, 5),
+(15, 5),
 (1, 6),
-(12, 6),
-(13, 6),
+(15, 6),
 (1, 7),
 (4, 7),
 (5, 7),
-(12, 7),
-(13, 7),
+(15, 7),
 (1, 8),
 (3, 8),
-(13, 8),
 (1, 9),
 (5, 9),
-(13, 9),
 (1, 10),
 (5, 10),
-(13, 10),
 (1, 11),
 (2, 11),
 (3, 11),
 (5, 11),
-(13, 11),
 (1, 12),
 (4, 12),
-(13, 12),
 (1, 13),
 (7, 13),
-(13, 13),
 (1, 14),
 (4, 14),
-(13, 14),
 (1, 15),
 (2, 15),
 (4, 15),
 (7, 15),
-(13, 15),
 (1, 16),
 (4, 16),
-(13, 16),
 (1, 17),
 (5, 17),
-(13, 17),
 (1, 18),
-(13, 18),
 (1, 19),
 (2, 19),
-(13, 19),
 (1, 20),
 (2, 20),
 (3, 20),
-(13, 20),
 (1, 35),
 (2, 35),
 (4, 35),
 (7, 35),
-(13, 35),
 (1, 36),
 (2, 36),
 (3, 36),
 (5, 36),
-(13, 36),
 (1, 37),
 (4, 37),
 (7, 37),
-(13, 37),
 (1, 38),
 (3, 38),
 (5, 38),
-(13, 38),
 (1, 39),
-(13, 39),
 (1, 40),
-(13, 40),
 (1, 41),
-(13, 41),
 (1, 42),
-(13, 42),
 (1, 43),
-(13, 43),
 (1, 44),
-(13, 44),
 (1, 45),
-(13, 45),
 (1, 46),
 (7, 46),
-(13, 46),
 (1, 47),
 (3, 47),
-(13, 47),
 (1, 48),
 (4, 48),
-(13, 48),
 (1, 49),
 (5, 49),
-(13, 49),
 (1, 50),
 (4, 50),
-(13, 50),
 (1, 51),
 (5, 51),
-(13, 51),
 (1, 52),
 (3, 52),
-(13, 52),
 (1, 53),
 (7, 53),
-(13, 53),
 (1, 54),
 (2, 54),
-(13, 54),
 (1, 55),
 (2, 55),
-(13, 55),
 (1, 56),
 (2, 56),
 (3, 56),
-(13, 56),
+(5, 56),
 (1, 57),
 (4, 57),
-(13, 57),
+(5, 57),
 (1, 78),
 (7, 78),
-(13, 78),
 (1, 79),
 (7, 79),
-(12, 79),
-(13, 79),
 (1, 80),
 (7, 80),
-(13, 80),
 (1, 85),
 (2, 85),
-(13, 85),
 (1, 86),
 (2, 86),
 (7, 86),
-(13, 86),
 (1, 87),
 (2, 87),
-(13, 87),
 (1, 88),
 (2, 88),
-(13, 88),
 (1, 89),
 (2, 89),
 (7, 89),
-(13, 89),
 (1, 90),
 (2, 90),
 (3, 90),
-(13, 90),
 (1, 91),
 (2, 91),
 (3, 91),
 (5, 91),
-(13, 91),
 (1, 92),
 (3, 92),
 (5, 92),
-(13, 92),
 (1, 93),
 (2, 93),
 (3, 93),
 (5, 93),
-(13, 93),
 (1, 94),
 (2, 94),
 (3, 94),
 (5, 94),
-(13, 94),
 (1, 95),
-(13, 95),
 (1, 96),
 (2, 96),
 (7, 96),
-(13, 96),
 (1, 97),
 (7, 97),
-(13, 97),
 (1, 98),
 (7, 98),
-(13, 98),
 (1, 99),
 (2, 99),
 (7, 99),
-(13, 99),
 (1, 100),
-(13, 100),
 (1, 101),
 (7, 101),
-(13, 101),
 (1, 102),
-(13, 102),
 (1, 103),
-(12, 103),
-(13, 103),
+(15, 103),
 (1, 104),
-(12, 104),
-(13, 104),
+(15, 104),
 (1, 105),
-(12, 105),
-(13, 105),
+(15, 105),
 (1, 106),
 (2, 106),
-(12, 106),
-(13, 106),
 (1, 107),
-(12, 107),
-(13, 107),
+(15, 107),
 (1, 108),
-(12, 108),
-(13, 108),
+(15, 108),
 (1, 109),
-(12, 109),
-(13, 109),
+(15, 109),
 (1, 110),
-(12, 110),
-(13, 110),
+(15, 110),
 (1, 111),
-(12, 111),
-(13, 111),
+(15, 111),
 (1, 112),
-(12, 112),
-(13, 112),
+(15, 112),
 (1, 113),
-(12, 113),
-(13, 113);
+(15, 113),
+(15, 119),
+(15, 120),
+(4, 126),
+(15, 126),
+(2, 127);
 
 -- --------------------------------------------------------
 
@@ -954,9 +906,8 @@ INSERT INTO `usuario_roles` (`id_usuario`, `id_rol`) VALUES
 (7, 4),
 (4, 5),
 (6, 7),
-(8, 12),
-(9, 12),
-(10, 13);
+(8, 15),
+(10, 15);
 
 --
 -- Índices para tablas volcadas
@@ -1111,7 +1062,7 @@ ALTER TABLE `usuario_roles`
 -- AUTO_INCREMENT de la tabla `adjuntos`
 --
 ALTER TABLE `adjuntos`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT de la tabla `areas_servicios`
@@ -1123,7 +1074,7 @@ ALTER TABLE `areas_servicios`
 -- AUTO_INCREMENT de la tabla `compras_planificaciones`
 --
 ALTER TABLE `compras_planificaciones`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
 
 --
 -- AUTO_INCREMENT de la tabla `config_flujos`
@@ -1159,43 +1110,43 @@ ALTER TABLE `insumos_medicos`
 -- AUTO_INCREMENT de la tabla `notificaciones`
 --
 ALTER TABLE `notificaciones`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=44;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=50;
 
 --
 -- AUTO_INCREMENT de la tabla `ordenes_compra`
 --
 ALTER TABLE `ordenes_compra`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
 -- AUTO_INCREMENT de la tabla `ordenes_compra_items`
 --
 ALTER TABLE `ordenes_compra_items`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=24;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=26;
 
 --
 -- AUTO_INCREMENT de la tabla `pedidos_items`
 --
 ALTER TABLE `pedidos_items`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=22;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=31;
 
 --
 -- AUTO_INCREMENT de la tabla `pedidos_servicio`
 --
 ALTER TABLE `pedidos_servicio`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
 
 --
 -- AUTO_INCREMENT de la tabla `permisos`
 --
 ALTER TABLE `permisos`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=126;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=128;
 
 --
 -- AUTO_INCREMENT de la tabla `roles`
 --
 ALTER TABLE `roles`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
 
 --
 -- AUTO_INCREMENT de la tabla `suministros_generales`
