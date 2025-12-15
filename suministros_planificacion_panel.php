@@ -1,6 +1,6 @@
 <?php
 // Archivo: suministros_planificacion_panel.php
-// Propósito: Panel de Campañas SUMINISTROS (Con Vencimiento por Hora y Selección Manual)
+// Propósito: Panel Suministros (DINÁMICO: Notifica a todos los roles con el permiso activado)
 
 require 'db.php';
 include 'includes/header.php';
@@ -25,7 +25,7 @@ if (isset($_POST['eliminar_id']) && $es_admin) {
     } catch (Exception $e) { echo "<div class='alert alert-danger'>Error: " . $e->getMessage() . "</div>"; }
 }
 
-// CREAR CAMPAÑA
+// CREAR CAMPAÑA Y NOTIFICAR DINÁMICAMENTE
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['crear_campana'])) {
     if (!$es_logistica && !$es_admin) { die("Acceso denegado."); }
     try {
@@ -39,17 +39,29 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['crear_campana'])) {
             ':tit' => $_POST['titulo'],
             ':freq'=> $_POST['frecuencia_cobertura'],
             ':ini' => $_POST['fecha_inicio'],
-            ':fin' => $_POST['fecha_cierre'], // HORA EXACTA
+            ':fin' => $_POST['fecha_cierre'],
             ':user'=> $_SESSION['user_id']
         ]);
         
-        // Notificar
-        $rolSolicitante = obtenerIdRolPorPermiso('solicitar_suministros');
-        if ($rolSolicitante) {
-            $msg = "📢 Campaña SUMINISTROS (" . $_POST['frecuencia_cobertura'] . "): " . $_POST['titulo'];
-            $pdo->prepare("INSERT INTO notificaciones (id_rol_destino, mensaje, url_destino) VALUES (?,?,?)")
-                ->execute([$rolSolicitante, $msg, 'campana_carga_suministros.php']); 
+        // --- NOTIFICACIÓN DINÁMICA (SIN HARDCODE) ---
+        // 1. Buscamos TODOS los roles que tengan el permiso 'recibir_avisos_campana'
+        $sqlRoles = "SELECT rp.id_rol 
+                     FROM rol_permisos rp 
+                     JOIN permisos p ON rp.id_permiso = p.id 
+                     WHERE p.clave = 'recibir_avisos_campana'";
+        $rolesDestino = $pdo->query($sqlRoles)->fetchAll(PDO::FETCH_COLUMN);
+
+        if ($rolesDestino) {
+            $msg = "📢 Nueva Campaña Suministros: " . $_POST['titulo'];
+            $stmtNoti = $pdo->prepare("INSERT INTO notificaciones (id_rol_destino, mensaje, url_destino) VALUES (?,?,?)");
+            
+            // 2. Insertamos una notificación para CADA rol encontrado
+            foreach ($rolesDestino as $idRol) {
+                $stmtNoti->execute([$idRol, $msg, 'campana_carga_suministros.php']);
+            }
         }
+        // ---------------------------------------------
+
         $pdo->commit();
         echo "<script>window.location='suministros_planificacion_panel.php?msg=ok';</script>";
     } catch (Exception $e) {
@@ -84,7 +96,7 @@ $planificaciones = $pdo->query($sql)->fetchAll();
                     <tr>
                         <th>Campaña</th>
                         <th>Cobertura</th>
-                        <th>Cierre de Carga (Deadline)</th>
+                        <th>Deadline</th>
                         <th>Estado</th>
                         <th class="text-end">Acciones</th>
                     </tr>

@@ -19,6 +19,7 @@ $mapa = [
     'g_top_ins' => ['dash_fin_graph_top_ins'],
     'g_top_sum' => ['dash_fin_graph_top_sum'],
     'g_serv'    => ['dash_fin_graph_servicios'],
+    'fin_full' => ['ver_gastos_detallados'],
 
     // Logística (Suministros)
     'log_stock' => ['dash_log_kpi_stock'],
@@ -58,7 +59,29 @@ foreach ($mapa as $alias => $claves) {
 
 // --- 2. OBTENCIÓN DE DATOS (Queries Optimizadas) ---
 $D = [];
+// --- BLOQUE NUEVO: INTELIGENCIA FINANCIERA ---
+if ($P['fin_full']) {
+    // 1. Gráfico Torta: Insumos vs Suministros (Gasto Real)
+    $sqlPie = "SELECT tipo_origen as label, SUM(oci.precio_unitario * oci.cantidad_aprobada_compra) as total 
+               FROM ordenes_compra_items oci 
+               JOIN ordenes_compra oc ON oci.id_oc = oc.id 
+               WHERE oc.estado IN ('aprobada_logistica', 'completada', 'recibida_parcial', 'recibida_total')
+               GROUP BY tipo_origen";
+    $D['pie_data'] = $pdo->query($sqlPie)->fetchAll();
 
+    // 2. Gráfico Barras: Top 10 Productos Más Costosos
+    $sqlTopCost = "SELECT oci.descripcion_producto as item, SUM(oci.precio_unitario * oci.cantidad_aprobada_compra) as gasto 
+                   FROM ordenes_compra_items oci 
+                   JOIN ordenes_compra oc ON oci.id_oc = oc.id 
+                   WHERE oc.estado NOT IN ('rechazada', 'pendiente_logistica')
+                   GROUP BY item 
+                   ORDER BY gasto DESC LIMIT 10";
+    $D['bar_data'] = $pdo->query($sqlTopCost)->fetchAll();
+
+    // 3. Gasto Histórico Total
+    $D['gasto_total_hist'] = $pdo->query("SELECT SUM(oci.precio_unitario * oci.cantidad_aprobada_compra) FROM ordenes_compra_items oci JOIN ordenes_compra oc ON oci.id_oc = oc.id WHERE oc.estado NOT IN ('rechazada')")->fetchColumn() ?: 0;
+}
+// ---------------------------------------------
 // Finanzas
 if ($P['fin_gasto']) $D['gasto'] = $pdo->query("SELECT SUM(oci.precio_unitario*oci.cantidad_solicitada) FROM ordenes_compra_items oci JOIN ordenes_compra oc ON oci.id_oc=oc.id WHERE MONTH(oc.fecha_creacion)=MONTH(CURRENT_DATE()) AND oc.estado!='rechazada'")->fetchColumn() ?: 0;
 if ($P['fin_pend']) $D['pend'] = $pdo->query("SELECT COUNT(*) FROM ordenes_compra WHERE estado='pendiente_logistica'")->fetchColumn();
@@ -244,7 +267,7 @@ if($P['g_dem_sum']) $D['g_dem_s'] = $pdo->query("SELECT descripcion_producto as 
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
     <?php endif; ?>
-
+                        
     <div class="row g-4 mb-5">
         
         <?php if($P['fin_gasto']): ?>
